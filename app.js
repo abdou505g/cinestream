@@ -1187,27 +1187,75 @@ async function fetchSeasonEpisodes(id, season) {
   return null;
 }
 
+// ── Quality helpers ───────────────────────────────────────────────
+const QUALITY_ORDER = ['2160p','4k','1080p','720p','480p','360p','240p'];
+const QUALITY_META  = {
+  '2160p': { label:'4K UHD', color:'#f59e0b', icon:'👑' },
+  '4k':    { label:'4K UHD', color:'#f59e0b', icon:'👑' },
+  '1080p': { label:'FHD 1080p', color:'#6366f1', icon:'⭐' },
+  '720p':  { label:'HD 720p',  color:'#22c55e', icon:'✅' },
+  '480p':  { label:'SD 480p',  color:'#64748b', icon:'📺' },
+  '360p':  { label:'360p',     color:'#64748b', icon:'📺' },
+  '240p':  { label:'240p',     color:'#64748b', icon:'📺' },
+};
+
+function normalizeQuality(raw) {
+  if (!raw) return 'stream';
+  const s = String(raw).toLowerCase().replace(/\s/g,'');
+  for (const key of QUALITY_ORDER) { if (s.includes(key.replace('p',''))) return key; }
+  if (s.includes('4k') || s.includes('uhd') || s.includes('2160')) return '2160p';
+  if (s.includes('fhd') || s.includes('1080')) return '1080p';
+  if (s.includes('hd') || s.includes('720'))  return '720p';
+  if (s.includes('sd') || s.includes('480'))  return '480p';
+  return raw; // keep original label if unknown
+}
+
+function sortByQuality(streams) {
+  return [...streams].sort((a, b) => {
+    const ai = QUALITY_ORDER.indexOf(a._qkey);
+    const bi = QUALITY_ORDER.indexOf(b._qkey);
+    if (ai === -1 && bi === -1) return 0;
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+}
+
 // ── Fetch real stream URLs from vaplayer API ──────────────────────
-// Returns array of {url, quality/label} from the actual CDN.
 // CORS may block this in browser — we handle that gracefully.
 async function fetchStreamLinks(id, season, episode) {
   const isTV = P.type === 'series' || P.type === 'episode';
-  const url = CFG.VAPLAYER_API + '?imdb=' + id
+  const url  = CFG.VAPLAYER_API + '?imdb=' + id
     + (isTV ? '&season=' + season + '&episode=' + episode : '');
+
+  let raw = null;
   try {
-    const r = await fetch(url, { headers: { Referer: 'https://streamimdb.ru/' } });
-    if (!r.ok) return null;
-    const data = await r.json();
-    // Normalize various response shapes the API might return
-    if (Array.isArray(data)) return data;
-    if (data.streams)  return data.streams;
-    if (data.sources)  return data.sources;
-    if (data.links)    return data.links;
-    if (data.url) return [{ url: data.url, quality: data.quality || 'Stream' }];
-  } catch(e) {
-    console.warn('[Player] vaplayer API:', e.message); // CORS or network
-  }
-  return null;
+    const r = await fetch(url, {
+      headers: { Referer: 'https://streamimdb.ru/', Origin: 'https://streamimdb.ru' }
+    });
+    if (r.ok) {
+      const data = await r.json();
+      if (Array.isArray(data))   raw = data;
+      else if (data.streams)     raw = data.streams;
+      else if (data.sources)     raw = data.sources;
+      else if (data.links)       raw = data.links;
+      else if (data.qualities)   raw = data.qualities;
+      else if (data.url)         raw = [{ url: data.url, quality: data.quality || 'Stream' }];
+    }
+  } catch(e) { console.warn('[Player] vaplayer API blocked (CORS):', e.message); }
+
+  if (!raw?.length) return null;
+
+  // Normalize and tag each stream
+  return raw
+    .map(s => {
+      const url   = s.url   || s.link   || s.src  || s.file || '';
+      const qraw  = s.quality|| s.label || s.resolution || s.name || s.format || '';
+      const qkey  = normalizeQuality(qraw);
+      const size  = s.size  || s.filesize || null;
+      return { url, qraw, _qkey: qkey, size };
+    })
+    .filter(s => s.url);
 }
 
 // ── Update iframe with current P state ───────────────────────────
@@ -1362,8 +1410,8 @@ async function openDownloadPanel() {
 
   const status  = $('#dlStatus');
   const streams = $('#dlStreams');
-  if (status)  { status.style.display = 'flex'; status.innerHTML = '<div class="dl-spinner"></div> Fetching available streams…'; }
-  if (streams) streams.innerHTML = '';
+  if (status)  { status.style.display = 'flex'; status.innerHTML = '<div class="dl-spinner"></div> Fetching available qualities…'; }
+  if (streams) { streams.innerHTML = ''; }
 
   const data = await fetchStreamLinks(P.id, P.season, P.episode);
 
@@ -1372,50 +1420,147 @@ async function openDownloadPanel() {
   streams.innerHTML = '';
 
   if (data?.length) {
-    // Real stream links from API — show exactly what came back
-    data.forEach(s => {
-      const url   = s.url || s.link || s.src || '';
-      const label = s.quality || s.label || s.resolution || s.name || 'Stream';
-      if (!url) return;
-      streams.appendChild(buildDlRow(label, url));
-    });
+    const sorted = sortByQuality(data);
+
+    // Header
+    const hdr = document.createElement('div');
+    hdr.className = 'dl-header';
+    hdr.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+      + ' ' + sorted.length + ' qualit' + (sorted.length === 1 ? 'y' : 'ies') + ' available';
+    streams.appendChild(hdr);
+
+    sorted.forEach((s, i) => streams.appendChild(buildQualityCard(s, i === 0)));
+
   } else {
-    // API blocked (CORS) — show embed URL for external download managers
-    const note = document.createElement('div'); note.className = 'dl-note';
+    // API blocked — show embed URL fallback
+    const note = document.createElement('div');
+    note.className = 'dl-note';
     note.innerHTML =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>'
-      + '<span>Direct stream requires a download manager. Copy the URL and open it in <strong>IDM</strong>, <strong>VLC</strong>, or <strong>MX Player</strong>.</span>';
+      + '<span>Stream API unavailable (CORS). Copy the URL and open it in <strong>IDM</strong>, <strong>VLC</strong>, or <strong>MX Player</strong> to download.</span>';
     streams.appendChild(note);
-    streams.appendChild(buildDlRow('Stream URL', buildEmbedUrl(P.id, P.type, P.season, P.episode)));
+
+    const embedUrl = buildEmbedUrl(P.id, P.type, P.season, P.episode);
+    streams.appendChild(buildQualityCard({
+      url: embedUrl, qraw: 'Embed', _qkey: 'stream', size: null
+    }, true));
   }
 }
 
-function buildDlRow(label, url) {
-  const row = document.createElement('div'); row.className = 'dl-row';
+// ── Quality card ──────────────────────────────────────────────────
+function buildQualityCard(s, isBest) {
+  const meta   = QUALITY_META[s._qkey] || { label: s.qraw || 'Stream', color: '#64748b', icon: '🎬' };
+  const label  = meta.label;
+  const color  = meta.color;
+  const icon   = meta.icon;
+  const sizeStr = s.size ? formatSize(s.size) : null;
 
-  const badge = document.createElement('span'); badge.className = 'dl-badge';
-  badge.textContent = label;
+  const card = document.createElement('div');
+  card.className = 'dl-quality-card' + (isBest ? ' dl-best' : '');
 
-  const acts = document.createElement('div'); acts.className = 'dl-actions';
+  // Left: quality badge
+  const left = document.createElement('div');
+  left.className = 'dl-quality-left';
+  left.innerHTML =
+    '<div class="dl-quality-icon">' + icon + '</div>'
+    + '<div class="dl-quality-info">'
+    +   '<div class="dl-quality-label" style="color:' + color + '">' + label + '</div>'
+    +   (sizeStr ? '<div class="dl-quality-size">' + sizeStr + '</div>' : '')
+    +   (isBest ? '<div class="dl-quality-best-tag">Best Quality</div>' : '')
+    + '</div>';
 
-  const copy = document.createElement('button'); copy.className = 'dl-btn';
-  copy.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';
-  copy.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(url); toast('📋 ' + label + ' URL copied'); }
-    catch(e) { toast(url); }
+  // Right: action buttons
+  const right = document.createElement('div');
+  right.className = 'dl-quality-actions';
+
+  // Download button (triggers browser download)
+  const dlBtn = document.createElement('button');
+  dlBtn.className = 'dl-action-btn dl-action-download';
+  dlBtn.title = 'Download ' + label;
+  dlBtn.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+    + '<span>Download</span>';
+  dlBtn.addEventListener('click', () => triggerDownload(s.url, label));
+
+  // Copy URL button
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'dl-action-btn dl-action-copy';
+  copyBtn.title = 'Copy URL';
+  copyBtn.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
+    + '<span>Copy URL</span>';
+  copyBtn.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(s.url); toast('📋 ' + label + ' URL copied!'); }
+    catch(e) { toast(s.url); }
   });
 
-  const open = document.createElement('a'); open.className = 'dl-btn';
-  open.href = url; open.target = '_blank'; open.rel = 'noopener noreferrer';
-  open.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Open';
+  // VLC button
+  const vlcBtn = document.createElement('a');
+  vlcBtn.className = 'dl-action-btn dl-action-vlc';
+  vlcBtn.href = 'vlc://' + s.url.replace(/^https?:\/\//, '');
+  vlcBtn.title = 'Open in VLC';
+  vlcBtn.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="currentColor" width="14"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l7 4.5-7 4.5z"/></svg>'
+    + '<span>VLC</span>';
 
-  const vlc = document.createElement('a'); vlc.className = 'dl-btn vlc';
-  vlc.href = 'vlc://' + url.replace(/^https?:\/\//, '');
-  vlc.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="13"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l7 4.5-7 4.5z"/></svg> VLC';
+  // MX Player button (Android)
+  const mxBtn = document.createElement('a');
+  mxBtn.className = 'dl-action-btn dl-action-mx';
+  mxBtn.href = 'intent:' + s.url + '#Intent;package=com.mxtech.videoplayer.ad;end';
+  mxBtn.title = 'Open in MX Player';
+  mxBtn.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="currentColor" width="14"><path d="M8 5v14l11-7z"/></svg>'
+    + '<span>MX</span>';
 
-  acts.append(copy, open, vlc);
-  row.append(badge, acts);
-  return row;
+  right.append(dlBtn, copyBtn, vlcBtn, mxBtn);
+  card.append(left, right);
+  return card;
+}
+
+// ── Trigger browser download ───────────────────────────────────────
+async function triggerDownload(url, label) {
+  toast('⬇️ Starting download…');
+  // Try fetch → blob (works when CORS allows it)
+  try {
+    const r = await fetch(url, { headers: { Referer: 'https://streamimdb.ru/' } });
+    if (r.ok) {
+      const blob  = await r.blob();
+      const ext   = guessExt(blob.type, url);
+      const fname = (P.id || 'video') + '_' + label.replace(/\s/g,'_') + ext;
+      const burl  = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = burl; a.download = fname;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(burl), 10000);
+      toast('✅ Download started: ' + fname);
+      return;
+    }
+  } catch(e) { /* CORS blocked — fall through */ }
+
+  // Fallback: open URL directly (browser handles download)
+  const a = document.createElement('a');
+  a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+  a.download = (P.id || 'video') + '_' + label.replace(/\s/g,'_');
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  toast('🔗 Opened in browser — save with Ctrl+S or use IDM');
+}
+
+function guessExt(mimeType, url) {
+  if (mimeType.includes('mp4'))  return '.mp4';
+  if (mimeType.includes('webm')) return '.webm';
+  if (mimeType.includes('mkv'))  return '.mkv';
+  const ext = url.match(/\.(mp4|mkv|webm|avi|m3u8)(\?|$)/i);
+  return ext ? '.' + ext[1] : '.mp4';
+}
+
+function formatSize(bytes) {
+  if (!bytes || isNaN(bytes)) return null;
+  if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + ' GB';
+  if (bytes >= 1e6) return (bytes / 1e6).toFixed(0) + ' MB';
+  return (bytes / 1e3).toFixed(0) + ' KB';
 }
 
 // ── Close player ──────────────────────────────────────────────────

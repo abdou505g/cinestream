@@ -1161,11 +1161,13 @@ img { display:block; }
 
 /* ── Download panel ─────────────────────────────────────────── */
 .player-dl-panel {
-  background: #111;
+  background: #0f0f0f;
   border-top: 1px solid rgba(255,255,255,0.08);
   padding: 16px;
 }
 .player-dl-panel.hidden { display: none; }
+
+/* Loading status */
 .dl-status {
   display: flex;
   align-items: center;
@@ -1181,41 +1183,137 @@ img { display:block; }
   border-radius: 50%;
   animation: spin .8s linear infinite;
 }
-.dl-streams { display: flex; flex-direction: column; gap: 8px; }
-.dl-row {
-  display: flex; align-items: center;
+
+/* Streams container */
+.dl-streams { display: flex; flex-direction: column; gap: 10px; }
+
+/* Header */
+.dl-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8rem;
+  color: var(--text2);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: 0 0 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 2px;
+}
+
+/* Quality card */
+.dl-quality-card {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 8px;
-  padding: 10px 12px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  transition: border-color .15s;
 }
-.dl-badge {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text2);
-  flex-shrink: 0;
+.dl-quality-card:hover { border-color: rgba(255,255,255,0.14); }
+.dl-quality-card.dl-best {
+  border-color: rgba(245,158,11,0.35);
+  background: rgba(245,158,11,0.06);
 }
-.dl-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.dl-btn {
-  display: inline-flex; align-items: center; gap: 4px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: #fff;
+
+/* Left section */
+.dl-quality-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.dl-quality-icon { font-size: 1.4rem; flex-shrink: 0; }
+.dl-quality-info { min-width: 0; }
+.dl-quality-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.dl-quality-size {
   font-size: 0.75rem;
-  padding: 5px 10px;
-  border-radius: 6px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+.dl-quality-best-tag {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  background: rgba(245,158,11,0.2);
+  color: #f59e0b;
+  border: 1px solid rgba(245,158,11,0.4);
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-top: 4px;
+}
+
+/* Action buttons */
+.dl-quality-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.dl-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
   cursor: pointer;
   text-decoration: none;
-  transition: background .15s;
+  border: 1px solid transparent;
+  transition: all .15s;
+  white-space: nowrap;
+  font-family: inherit;
 }
-.dl-btn:hover { background: rgba(255,255,255,0.18); }
-.dl-btn.vlc { border-color: rgba(255,160,0,0.4); color: #ffa000; }
+/* Download — primary */
+.dl-action-download {
+  background: var(--red);
+  color: #fff;
+  border-color: var(--red);
+}
+.dl-action-download:hover { background: #c40812; border-color: #c40812; }
+/* Copy */
+.dl-action-copy {
+  background: rgba(255,255,255,0.07);
+  color: var(--text);
+  border-color: rgba(255,255,255,0.12);
+}
+.dl-action-copy:hover { background: rgba(255,255,255,0.15); }
+/* VLC */
+.dl-action-vlc {
+  background: rgba(255,160,0,0.1);
+  color: #ffa000;
+  border-color: rgba(255,160,0,0.3);
+}
+.dl-action-vlc:hover { background: rgba(255,160,0,0.2); }
+/* MX */
+.dl-action-mx {
+  background: rgba(99,102,241,0.1);
+  color: #818cf8;
+  border-color: rgba(99,102,241,0.3);
+}
+.dl-action-mx:hover { background: rgba(99,102,241,0.2); }
+
+/* Note / info block */
 .dl-note {
   display: flex; align-items: flex-start; gap: 8px;
   font-size: 0.8rem; color: var(--text2); line-height: 1.5;
-  padding: 6px 0;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
 }
 
 /* ── Episode picker ─────────────────────────────────────────── */
@@ -1313,5 +1411,7 @@ img { display:block; }
   .player-title    { font-size: 0.88rem; }
   .player-dl-btn   { padding: 6px 10px; font-size: 0.78rem; }
   .eps-grid        { grid-template-columns: 1fr 1fr; }
-  .dl-row          { flex-direction: column; align-items: flex-start; }
+  .dl-quality-card { flex-direction: column; align-items: flex-start; }
+  .dl-quality-actions { width: 100%; justify-content: flex-start; }
+  .dl-action-btn   { padding: 6px 10px; font-size: 0.74rem; }
 }
