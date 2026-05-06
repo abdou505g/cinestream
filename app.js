@@ -4,24 +4,16 @@
    Fixes applied: 28 bugs / performance / security / structural
 ═══════════════════════════════════════════════════════════════ */
 
-// ── POLYFILLS — cross-browser compatibility ──────────────────────
-// Promise.allSettled: not available in Safari < 13, Chrome < 76
-if (typeof Promise.allSettled !== 'function') {
-  Promise.allSettled = function(promises) {
-    return Promise.all(promises.map(p =>
-      Promise.resolve(p).then(
-        value => ({ status: 'fulfilled', value }),
-        reason => ({ status: 'rejected', reason })
-      )
-    ));
-  };
-}
+// ── AUTH (Local only — no Firebase) ─────────────────────────────
 
 // ── APP CONFIG ───────────────────────────────────────────────────
 const CFG = {
   OMDB_KEY:     '4b251b1e',
   OMDB:         'https://www.omdbapi.com/',
   PLAY:         'https://www.playimdb.com/title/',
+  STREAM_MOVIE: 'https://streamimdb.ru/embed/movie/',
+  STREAM_TV:    'https://streamimdb.ru/embed/tv/',
+  VAPLAYER_API: 'https://streamdata.vaplayer.ru/api.php',
   HERO_MS:      7000,
   CACHE_TTL_MS: 48 * 60 * 60 * 1000,   // 48 h
   CACHE_MAX:    120,
@@ -699,7 +691,13 @@ function renderHero(idx) {
 
   // FIX #20: validate ID before building URL
   const pb = $('#heroPlay');
-  if (pb) pb.href = safePlayUrl(m.imdbID);
+  if (pb) {
+    pb.removeAttribute('href');
+    pb.removeAttribute('target');
+    pb.removeAttribute('rel');
+    pb.dataset.imdbId = m.imdbID;
+    pb.onclick = (e) => { e.preventDefault(); openPlayer(m.imdbID); };
+  }
   // FIX #17: add noreferrer to external link
   if (pb) pb.rel = 'noopener noreferrer';
 
@@ -828,9 +826,8 @@ async function openModal(id, push = true) {
     + [1,2,3,4,5].map(n => '<span class="star' + (n <= stars ? ' on' : '') + '" data-n="' + n + '" role="button" tabindex="0" aria-label="' + n + ' star' + (n>1?'s':'') + '">★</span>').join('')
     + '</div></div>'
     + '<div class="modal-actions">'
-    // FIX #17: rel="noopener noreferrer" on external link
-    + '<a href="' + playUrl + '" target="_blank" rel="noopener noreferrer" class="modal-play-btn" id="modalPlayBtn">'
-    + '<svg viewBox="0 0 24 24" fill="currentColor" width="20"><path d="M8 5v14l11-7z"/></svg> Play Now</a>'
+    + '<button class="modal-play-btn" id="modalPlayBtn" data-id="' + esc(id) + '">'
+    + '<svg viewBox="0 0 24 24" fill="currentColor" width="20"><path d="M8 5v14l11-7z"/></svg> Play Now</button>'
     + '<button class="modal-secondary-btn' + (inWL ? ' added' : '') + '" id="modalWlBtn" data-wl="' + esc(id) + '">'
     + '<svg viewBox="0 0 24 24" fill="' + (inWL ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" width="18"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>'
     + ' ' + (inWL ? 'In My List' : 'Add to List') + '</button>'
@@ -876,7 +873,11 @@ async function openModal(id, push = true) {
     }
   });
 
-  $('#modalPlayBtn')?.addEventListener('click', () => { addHistory(m); toast('▶ Playing "' + m.Title + '"'); });
+  $('#modalPlayBtn')?.addEventListener('click', () => {
+    addHistory(m);
+    closeModal(false);
+    openPlayer(id);
+  });
 
   loadSimilar(m, genres[0], session);
 }
@@ -1144,6 +1145,287 @@ function ferr(code) {
   return map[code] || 'Something went wrong. Please try again.';
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   PLAYER ENGINE
+   · iframe embeds the native player — quality/subtitles are its own
+   · Episode picker built from real OMDb season API responses
+   · Download panel built from real vaplayer stream API — no hardcoded values
+   · Falls back gracefully when stream API is blocked by CORS
+══════════════════════════════════════════════════════════════════ */
+const P = {
+  id: null, type: null,
+  season: 1, episode: 1,
+  totalSeasons: 1,
+  seasonCache: {},   // season# → OMDb season object
+};
+
+// ── URL Builders ─────────────────────────────────────────────────
+function buildEmbedUrl(id, type, season, episode) {
+  if (type === 'series' || type === 'episode') {
+    return CFG.STREAM_TV + id + '?season=' + season + '&episode=' + episode;
+  }
+  return CFG.STREAM_MOVIE + id;
+}
+
+// ── Progress persistence ─────────────────────────────────────────
+function saveProgress(id, season, episode) {
+  const prog = Store.read('cs_progress', {});
+  prog[id] = { season, episode, ts: Date.now() };
+  Store.write('cs_progress', prog);
+}
+
+// ── Fetch real season/episode data from OMDb ─────────────────────
+async function fetchSeasonEpisodes(id, season) {
+  if (P.seasonCache[season]) return P.seasonCache[season];
+  try {
+    const r = await fetchWithRetry(
+      CFG.OMDB + '?i=' + id + '&Season=' + season + '&apikey=' + CFG.OMDB_KEY
+    );
+    const d = await r.json();
+    if (d.Response === 'True') { P.seasonCache[season] = d; return d; }
+  } catch(e) { console.warn('[Player] season fetch:', e.message); }
+  return null;
+}
+
+// ── Fetch real stream URLs from vaplayer API ──────────────────────
+// Returns array of {url, quality/label} from the actual CDN.
+// CORS may block this in browser — we handle that gracefully.
+async function fetchStreamLinks(id, season, episode) {
+  const isTV = P.type === 'series' || P.type === 'episode';
+  const url = CFG.VAPLAYER_API + '?imdb=' + id
+    + (isTV ? '&season=' + season + '&episode=' + episode : '');
+  try {
+    const r = await fetch(url, { headers: { Referer: 'https://streamimdb.ru/' } });
+    if (!r.ok) return null;
+    const data = await r.json();
+    // Normalize various response shapes the API might return
+    if (Array.isArray(data)) return data;
+    if (data.streams)  return data.streams;
+    if (data.sources)  return data.sources;
+    if (data.links)    return data.links;
+    if (data.url) return [{ url: data.url, quality: data.quality || 'Stream' }];
+  } catch(e) {
+    console.warn('[Player] vaplayer API:', e.message); // CORS or network
+  }
+  return null;
+}
+
+// ── Update iframe with current P state ───────────────────────────
+function updatePlayerFrame() {
+  const frame = $('#playerFrame'); if (!frame) return;
+  const loader = $('#playerLoader');
+  if (loader) loader.classList.add('on');
+
+  frame.src = 'about:blank';
+  requestAnimationFrame(() => {
+    frame.src = buildEmbedUrl(P.id, P.type, P.season, P.episode);
+  });
+  frame.onload = () => loader?.classList.remove('on');
+
+  // Update S##·E## badge
+  const badge = $('#playerEpBadge');
+  if (badge) {
+    const isTV = P.type === 'series' || P.type === 'episode';
+    badge.textContent = isTV
+      ? 'S' + String(P.season).padStart(2,'0') + ' · E' + String(P.episode).padStart(2,'0')
+      : '';
+    badge.style.display = badge.textContent ? '' : 'none';
+  }
+
+  // Highlight active episode card
+  $$('.ep-card').forEach(c =>
+    c.classList.toggle('active', +c.dataset.s === P.season && +c.dataset.e === P.episode)
+  );
+
+  saveProgress(P.id, P.season, P.episode);
+}
+
+// ── Open player ───────────────────────────────────────────────────
+async function openPlayer(id, season, episode) {
+  if (!validId(id)) return;
+  const movie = MovieCache.get(id) || await fetchMovie(id);
+  if (!movie) { toast('Could not load title.'); return; }
+
+  const prog = Store.read('cs_progress', {})[id];
+  P.id          = id;
+  P.type        = movie.Type;
+  P.totalSeasons = parseInt(movie.totalSeasons) || 1;
+  P.season      = season  ?? prog?.season  ?? 1;
+  P.episode     = episode ?? prog?.episode ?? 1;
+  P.seasonCache = {};
+
+  $('#playerBg')?.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  const titleEl = $('#playerTitle');
+  if (titleEl) titleEl.textContent = movie.Title;
+
+  updatePlayerFrame();
+
+  // Reset download panel
+  $('#playerDlPanel')?.classList.add('hidden');
+
+  // Show episode picker only for series with real data
+  const epsPanel = $('#playerEpisodes');
+  const isTV = movie.Type === 'series' || movie.Type === 'episode';
+  if (isTV && epsPanel) {
+    epsPanel.classList.remove('hidden');
+    buildSeasonTabs();
+    await loadEpisodeGrid(id, P.season);
+  } else if (epsPanel) {
+    epsPanel.classList.add('hidden');
+  }
+
+  addHistory(movie);
+}
+
+// ── Season tabs ───────────────────────────────────────────────────
+function buildSeasonTabs() {
+  const tabs = $('#seasonTabs'); if (!tabs) return;
+  tabs.innerHTML = '';
+  for (let s = 1; s <= P.totalSeasons; s++) {
+    const btn = document.createElement('button');
+    btn.className = 'season-tab' + (s === P.season ? ' active' : '');
+    btn.textContent = 'S' + s;
+    btn.dataset.s = s;
+    btn.addEventListener('click', async () => {
+      if (+btn.dataset.s === P.season) return;
+      P.season = +btn.dataset.s; P.episode = 1;
+      $$('.season-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      updatePlayerFrame();
+      $('#playerDlPanel')?.classList.add('hidden');
+      await loadEpisodeGrid(P.id, P.season);
+    });
+    tabs.appendChild(btn);
+  }
+}
+
+// ── Episode grid (from real OMDb data only) ───────────────────────
+async function loadEpisodeGrid(id, season) {
+  const grid = $('#epsGrid'); if (!grid) return;
+  // Skeleton while loading
+  grid.innerHTML = '';
+  for (let i = 0; i < 5; i++) {
+    const sk = document.createElement('div'); sk.className = 'ep-skel skel';
+    grid.appendChild(sk);
+  }
+
+  const data = await fetchSeasonEpisodes(id, season);
+  grid.innerHTML = '';
+
+  if (!data?.Episodes?.length) {
+    grid.innerHTML = '<p class="eps-empty">No episode data available.</p>'; return;
+  }
+
+  data.Episodes.forEach(ep => {
+    const n = parseInt(ep.Episode);
+    const card = document.createElement('div');
+    card.className = 'ep-card' + (n === P.episode && season === P.season ? ' active' : '');
+    card.dataset.s = season; card.dataset.e = n;
+
+    const num = document.createElement('div');
+    num.className = 'ep-num';
+    num.textContent = 'E' + String(n).padStart(2,'0');
+
+    const info = document.createElement('div'); info.className = 'ep-info';
+
+    const title = document.createElement('div'); title.className = 'ep-title';
+    title.textContent = ep.Title || 'Episode ' + n;
+    info.appendChild(title);
+
+    if (ep.imdbRating && ep.imdbRating !== 'N/A') {
+      const rat = document.createElement('div'); rat.className = 'ep-rating';
+      rat.textContent = '⭐ ' + ep.imdbRating;
+      info.appendChild(rat);
+    }
+
+    card.append(num, info);
+    card.addEventListener('click', () => {
+      P.season = season; P.episode = n;
+      $('#playerModal')?.scrollTo({ top: 0, behavior: 'smooth' });
+      $('#playerDlPanel')?.classList.add('hidden');
+      updatePlayerFrame();
+    });
+    grid.appendChild(card);
+  });
+}
+
+// ── Download panel (real streams from vaplayer API) ───────────────
+async function openDownloadPanel() {
+  const panel = $('#playerDlPanel');
+  if (!panel) return;
+
+  // Toggle close
+  if (!panel.classList.contains('hidden')) { panel.classList.add('hidden'); return; }
+  panel.classList.remove('hidden');
+
+  const status  = $('#dlStatus');
+  const streams = $('#dlStreams');
+  if (status)  { status.style.display = 'flex'; status.innerHTML = '<div class="dl-spinner"></div> Fetching available streams…'; }
+  if (streams) streams.innerHTML = '';
+
+  const data = await fetchStreamLinks(P.id, P.season, P.episode);
+
+  if (status) status.style.display = 'none';
+  if (!streams) return;
+  streams.innerHTML = '';
+
+  if (data?.length) {
+    // Real stream links from API — show exactly what came back
+    data.forEach(s => {
+      const url   = s.url || s.link || s.src || '';
+      const label = s.quality || s.label || s.resolution || s.name || 'Stream';
+      if (!url) return;
+      streams.appendChild(buildDlRow(label, url));
+    });
+  } else {
+    // API blocked (CORS) — show embed URL for external download managers
+    const note = document.createElement('div'); note.className = 'dl-note';
+    note.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>'
+      + '<span>Direct stream requires a download manager. Copy the URL and open it in <strong>IDM</strong>, <strong>VLC</strong>, or <strong>MX Player</strong>.</span>';
+    streams.appendChild(note);
+    streams.appendChild(buildDlRow('Stream URL', buildEmbedUrl(P.id, P.type, P.season, P.episode)));
+  }
+}
+
+function buildDlRow(label, url) {
+  const row = document.createElement('div'); row.className = 'dl-row';
+
+  const badge = document.createElement('span'); badge.className = 'dl-badge';
+  badge.textContent = label;
+
+  const acts = document.createElement('div'); acts.className = 'dl-actions';
+
+  const copy = document.createElement('button'); copy.className = 'dl-btn';
+  copy.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';
+  copy.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(url); toast('📋 ' + label + ' URL copied'); }
+    catch(e) { toast(url); }
+  });
+
+  const open = document.createElement('a'); open.className = 'dl-btn';
+  open.href = url; open.target = '_blank'; open.rel = 'noopener noreferrer';
+  open.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Open';
+
+  const vlc = document.createElement('a'); vlc.className = 'dl-btn vlc';
+  vlc.href = 'vlc://' + url.replace(/^https?:\/\//, '');
+  vlc.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="13"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l7 4.5-7 4.5z"/></svg> VLC';
+
+  acts.append(copy, open, vlc);
+  row.append(badge, acts);
+  return row;
+}
+
+// ── Close player ──────────────────────────────────────────────────
+function closePlayer() {
+  $('#playerBg')?.classList.remove('open');
+  document.body.style.overflow = '';
+  const f = $('#playerFrame'); if (f) f.src = 'about:blank';
+  $('#playerDlPanel')?.classList.add('hidden');
+}
+
 /* ── BOOT ──────────────────────────────────────────────────────── */
 function bootApp() {
   if (S.appBooted) return;
@@ -1253,11 +1535,18 @@ function setupAppEvents() {
   // Keyboard shortcuts
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
+      if ($('#playerBg')?.classList.contains('open')) { closePlayer(); return; }
       if ($('#modalBg')?.classList.contains('open')) closeModal();
       else if ($('#searchOverlay')?.classList.contains('open')) closeSearch();
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openSearch(); }
   });
+
+  // ── PLAYER CONTROLS ────────────────────────────────────────────
+  $('#playerCloseBtn')?.addEventListener('click', closePlayer);
+  $('#playerDlBtn')?.addEventListener('click', openDownloadPanel);
+  // Close player when clicking the dark backdrop (outside the modal)
+  $('#playerBg')?.addEventListener('click', e => { if (e.target === $('#playerBg')) closePlayer(); });
 
   window.addEventListener('scroll', () => $('#nav')?.classList.toggle('scrolled', window.scrollY > 50), { passive: true });
 
@@ -1269,26 +1558,6 @@ function setupAppEvents() {
     S.installEvt = null; $('#installBtn')?.classList.remove('show');
   });
   window.addEventListener('appinstalled', () => { toast('✅ App installed!'); $('#installBtn')?.classList.remove('show'); });
-
-  // ── iOS Safari install hint ─────────────────────────────────────
-  // iOS doesn't support beforeinstallprompt — show a manual hint instead
-  const isIOS    = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  const isStandalone = window.navigator.standalone === true
-    || window.matchMedia('(display-mode: standalone)').matches;
-
-  if (isIOS && isSafari && !isStandalone) {
-    const banner    = $('#iosInstallBanner');
-    const dismissed = localStorage.getItem('cs_ios_banner') === '1';
-    if (banner && !dismissed) {
-      // Show after a 3-second delay so it doesn't distract on first load
-      setTimeout(() => { banner.style.display = 'flex'; }, 3000);
-      $('#iosInstallClose')?.addEventListener('click', () => {
-        banner.style.display = 'none';
-        localStorage.setItem('cs_ios_banner', '1');
-      });
-    }
-  }
 
   // ── BACK / FORWARD NAVIGATION ──────────────────────────────────
   window.addEventListener('popstate', e => {
@@ -1314,41 +1583,15 @@ function setupAppEvents() {
     if (!S.heroMovies.length) initHero();
   });
 
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js')
+      .then(r => console.log('[SW] registered', r.scope))
+      .catch(e => console.warn('[SW] failed:', e.message));
+  }
 }
 
 /* ── ENTRY ──────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
-
-  // ── SERVICE WORKER — register immediately, before auth ───────────
-  // Runs on ALL browsers that support SW (Chrome, Firefox, Edge, Samsung, Safari 11.1+)
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./service-worker.js')
-      .then(reg => {
-        console.log('[SW] registered', reg.scope);
-
-        // Listen for a new SW waiting to take over
-        reg.addEventListener('updatefound', () => {
-          const newSW = reg.installing;
-          if (!newSW) return;
-          newSW.addEventListener('statechange', () => {
-            // New SW installed and old one is still controlling the page
-            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-              // Tell the new SW to skip waiting and activate immediately
-              newSW.postMessage({ type: 'SKIP_WAITING' });
-            }
-          });
-        });
-      })
-      .catch(e => console.warn('[SW] registration failed:', e.message));
-
-    // When the new SW takes control, reload once so users get fresh content
-    let reloading = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (reloading) return;
-      reloading = true;
-      window.location.reload();
-    });
-  }
   setupAuthUI();
 
   // Restore persisted session

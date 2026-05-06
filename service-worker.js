@@ -2,10 +2,7 @@ const CACHE     = 'cinestream-v4';
 const API_CACHE = 'cinestream-api-v4';
 const IMG_CACHE = 'cinestream-img-v4';
 
-const STATIC = [
-  './', './index.html', './style.css', './app.js', './manifest.json',
-  './icons/icon-192.png', './icons/icon-512.png'
-];
+const STATIC = ['./', './index.html', './style.css', './app.js', './manifest.json'];
 const API_TTL_MS  = 48 * 60 * 60 * 1000; // 48 h — matches app CFG
 const IMG_MAX     = 200;                  // max cached images
 
@@ -53,12 +50,6 @@ async function trimImageCache() {
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-
-  // Skip non-GET requests (POST, PUT, etc.) — never cache them
-  if (e.request.method !== 'GET') return;
-
-  // Skip non-http(s) protocols (chrome-extension://, data:, etc.)
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') return;
 
   // OMDb API — cache-first with TTL, then network
   if (url.hostname === 'www.omdbapi.com') {

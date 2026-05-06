@@ -7,32 +7,9 @@
   <meta name="description" content="CineStream — Your personal streaming guide"/>
   <!-- FIX #21: prevent search engines from indexing a PWA app shell -->
   <meta name="robots" content="noindex,nofollow"/>
-  <!-- ═══ iOS / Safari PWA ═══════════════════════════════════════ -->
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="CineStream"/>
-  <!-- Apple touch icons — required for "Add to Home Screen" on iOS -->
-  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
-  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-192.png"/>
-  <link rel="apple-touch-icon" sizes="167x167" href="icons/icon-192.png"/>
-  <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192.png"/>
-  <!-- ═══ Windows / Edge / IE ══════════════════════════════════════ -->
-  <meta name="msapplication-TileColor" content="#E50914"/>
-  <meta name="msapplication-TileImage" content="icons/icon-192.png"/>
-  <meta name="msapplication-config" content="none"/>
-
-  <!-- ═══ Android / Chrome (older) ════════════════════════════════ -->
-  <meta name="mobile-web-app-capable" content="yes"/>
-
-  <!-- ═══ Open Graph (sharing & PWA previews) ══════════════════════ -->
-  <meta property="og:type" content="website"/>
-  <meta property="og:title" content="CineStream 🎬"/>
-  <meta property="og:description" content="Your personal movie &amp; series streaming guide"/>
-  <meta property="og:image" content="icons/icon-512.png"/>
-
-  <!-- ═══ Favicon fallback ══════════════════════════════════════════ -->
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"/>
-  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png"/>
   <!-- FIX #18: Content Security Policy -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
@@ -40,8 +17,9 @@
     style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src    'self' https://fonts.gstatic.com;
     img-src     'self' data: https: blob:;
-    connect-src 'self' https://www.omdbapi.com;
-    frame-src   'none';
+    connect-src 'self' https://www.omdbapi.com https://streamdata.vaplayer.ru;
+    frame-src   'self' https://streamimdb.ru https://streamdata.vaplayer.ru;
+    media-src   'self' https://streamimdb.ru blob:;
     object-src  'none';
   "/>
   <title>CineStream 🎬</title>
@@ -278,6 +256,62 @@
 <!-- MOVIE MODAL -->
 <div class="modal-bg" id="modalBg" role="dialog" aria-modal="true" aria-label="Movie details">
   <div class="modal" id="modal"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PLAYER OVERLAY (streamimdb.ru embed)
+════════════════════════════════════════════════════ -->
+<div class="player-bg" id="playerBg" role="dialog" aria-modal="true" aria-label="Video player">
+  <div class="player-modal" id="playerModal">
+
+    <!-- Top bar -->
+    <div class="player-topbar">
+      <div class="player-topbar-left">
+        <button class="player-close" id="playerCloseBtn" aria-label="Close player">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20"><path d="M19 12H5M5 12l7-7M5 12l7 7"/></svg>
+        </button>
+        <h2 class="player-title" id="playerTitle">Loading…</h2>
+        <span class="player-ep-badge" id="playerEpBadge" style="display:none"></span>
+      </div>
+      <div class="player-topbar-right">
+        <button class="player-dl-btn" id="playerDlBtn" aria-label="Streams &amp; Download">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Streams
+        </button>
+      </div>
+    </div>
+
+    <!-- iframe wrapper -->
+    <div class="player-frame-wrap">
+      <div class="player-loader" id="playerLoader">
+        <div class="player-loader-ring"></div>
+      </div>
+      <iframe
+        id="playerFrame"
+        class="player-frame"
+        src="about:blank"
+        allowfullscreen
+        allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+        referrerpolicy="origin"
+        loading="lazy"
+        title="Video player"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-top-navigation-by-user-activation"
+      ></iframe>
+    </div>
+
+    <!-- Streams / Download panel -->
+    <div class="player-dl-panel hidden" id="playerDlPanel">
+      <div class="dl-status" id="dlStatus" style="display:none"></div>
+      <div class="dl-streams" id="dlStreams"></div>
+    </div>
+
+    <!-- Episode picker (series only) -->
+    <div class="player-episodes hidden" id="playerEpisodes">
+      <div class="season-tabs" id="seasonTabs" role="tablist" aria-label="Seasons"></div>
+      <div class="eps-grid" id="epsGrid" role="list"></div>
+    </div>
+
+  </div>
 </div>
 
 <!-- iOS INSTALL HINT (shown only on Safari / iOS) -->

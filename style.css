@@ -1031,47 +1031,287 @@ img { display:block; }
 }
 .auth-notice strong { color: var(--text); }
 
-/* ── iOS Install Banner ──────────────────────────────────────── */
-.ios-install-banner {
+/* ═══════════════════════════════════════════════════════════════════
+   PLAYER OVERLAY — streamimdb.ru embed
+═══════════════════════════════════════════════════════════════════ */
+.player-bg {
   position: fixed;
-  bottom: env(safe-area-inset-bottom, 0);
-  left: 0; right: 0;
-  z-index: 9999;
-  background: #1a1a1a;
-  border-top: 1px solid rgba(255,255,255,0.1);
-  padding: 14px 16px 18px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 -4px 24px rgba(0,0,0,0.6);
-  animation: slideUpBanner 0.35s ease;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0,0,0,0.96);
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
-@keyframes slideUpBanner {
-  from { transform: translateY(100%); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
-}
-.ios-install-icon { font-size: 2rem; flex-shrink: 0; }
-.ios-install-text {
-  flex: 1;
+.player-bg.open { display: flex; }
+
+.player-modal {
+  width: 100%;
+  max-width: 1280px;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  font-size: 0.82rem;
-  color: var(--text2);
-  line-height: 1.5;
+  padding: 0 0 env(safe-area-inset-bottom, 0);
 }
-.ios-install-text strong { color: var(--text); font-size: 0.9rem; }
-.ios-install-text svg   { display: inline; vertical-align: middle; margin: 0 2px; }
-.ios-install-close {
-  background: rgba(255,255,255,0.1);
-  border: none;
-  color: var(--text2);
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 0.8rem;
+
+/* ── Top bar ─────────────────────────────────────────────────── */
+.player-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
   flex-shrink: 0;
-  align-self: flex-start;
-  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.6);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
 }
-.ios-install-close:hover { background: rgba(255,255,255,0.2); }
+.player-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.player-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.player-close {
+  background: rgba(255,255,255,0.08);
+  border: none;
+  color: #fff;
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.player-close:hover { background: rgba(255,255,255,0.16); }
+.player-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.player-ep-badge {
+  background: var(--red);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.player-dl-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #fff;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background .15s;
+}
+.player-dl-btn:hover { background: rgba(255,255,255,0.16); }
+
+/* ── iframe ─────────────────────────────────────────────────── */
+.player-frame-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  flex-shrink: 0;
+}
+.player-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+.player-loader {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.7);
+  z-index: 2;
+}
+.player-loader.on { display: flex; }
+.player-loader-ring {
+  width: 44px; height: 44px;
+  border: 3px solid rgba(255,255,255,0.15);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Download panel ─────────────────────────────────────────── */
+.player-dl-panel {
+  background: #111;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 16px;
+}
+.player-dl-panel.hidden { display: none; }
+.dl-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text2);
+  font-size: 0.85rem;
+  padding: 8px 0;
+}
+.dl-spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.15);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+.dl-streams { display: flex; flex-direction: column; gap: 8px; }
+.dl-row {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.dl-badge {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+.dl-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.dl-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+  font-size: 0.75rem;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background .15s;
+}
+.dl-btn:hover { background: rgba(255,255,255,0.18); }
+.dl-btn.vlc { border-color: rgba(255,160,0,0.4); color: #ffa000; }
+.dl-note {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: 0.8rem; color: var(--text2); line-height: 1.5;
+  padding: 6px 0;
+}
+
+/* ── Episode picker ─────────────────────────────────────────── */
+.player-episodes {
+  background: #0d0d0d;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  padding: 16px;
+}
+.player-episodes.hidden { display: none; }
+.season-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.season-tab {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text2);
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.season-tab.active,
+.season-tab:hover {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+.eps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+.ep-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.ep-card:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.15); }
+.ep-card.active { background: rgba(229,9,20,0.15); border-color: rgba(229,9,20,0.5); }
+.ep-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--red);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ep-card.active .ep-num { color: #ff4444; }
+.ep-info { min-width: 0; }
+.ep-title {
+  font-size: 0.83rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ep-rating { font-size: 0.73rem; color: var(--text2); margin-top: 2px; }
+.ep-skel {
+  height: 54px;
+  border-radius: 10px;
+}
+.eps-empty { color: var(--text2); font-size: 0.85rem; padding: 8px 0; }
+
+/* ── Modal Play button (now a <button> not <a>) ────────────── */
+.modal-play-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  padding: 11px 24px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background .15s, transform .1s;
+  font-family: inherit;
+}
+.modal-play-btn:hover { background: #c40812; transform: scale(1.03); }
+
+/* ── Mobile responsive ──────────────────────────────────────── */
+@media (max-width: 600px) {
+  .player-title    { font-size: 0.88rem; }
+  .player-dl-btn   { padding: 6px 10px; font-size: 0.78rem; }
+  .eps-grid        { grid-template-columns: 1fr 1fr; }
+  .dl-row          { flex-direction: column; align-items: flex-start; }
+}
