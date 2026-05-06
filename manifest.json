@@ -1,0 +1,35 @@
+{
+  "name": "CineStream — Movies & Series",
+  "short_name": "CineStream",
+  "description": "Your personal Netflix-like streaming guide",
+  "id": "/cinestream1/",
+  "scope": "/cinestream1/",
+  "start_url": "/cinestream1/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#E50914",
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "categories": ["entertainment"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Search",
+      "url": "/?s=1",
+      "description": "Search movies",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Watchlist",
+      "url": "/?w=1",
+      "description": "My watchlist",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}
