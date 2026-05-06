@@ -59,7 +59,7 @@ self.addEventListener('fetch', e => {
         if (isFresh(cached, API_TTL_MS)) return cached;
         try {
           const r = await fetch(e.request);
-          if (r.ok) storeWithTimestamp(API_CACHE, e.request, r.clone());
+          if (r.ok) void storeWithTimestamp(API_CACHE, e.request, r.clone());
           return r;
         } catch(_) { return cached || new Response('{}', { status: 503 }); }
       })
@@ -73,7 +73,7 @@ self.addEventListener('fetch', e => {
       caches.match(e.request).then(cached => cached ||
         fetch(e.request).then(r => {
           if (r.ok) {
-            storeWithTimestamp(IMG_CACHE, e.request, r.clone());
+            void storeWithTimestamp(IMG_CACHE, e.request, r.clone());
             trimImageCache();
           }
           return r;
@@ -87,7 +87,7 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     caches.match(e.request).then(cached => {
       const fresh = fetch(e.request).then(r => {
-        if (r.ok) caches.open(CACHE).then(c => c.put(e.request, r.clone()));
+        if (r.ok) caches.open(CACHE).then(c => void c.put(e.request, r.clone()));
         return r;
       }).catch(() => cached);
       return cached || fresh;

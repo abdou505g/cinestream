@@ -11,9 +11,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="CineStream"/>
   <!-- FIX #18: Content Security Policy -->
+  <!-- FIX #18 (improved): removed unsafe-inline from script-src — all JS is in app.js (deferred) -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    script-src  'self' 'unsafe-inline';
+    script-src  'self';
     style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src    'self' https://fonts.gstatic.com;
     img-src     'self' data: https: blob:;
@@ -295,7 +296,7 @@
         referrerpolicy="origin"
         loading="lazy"
         title="Video player"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-top-navigation-by-user-activation"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-presentation allow-top-navigation-by-user-activation"
       ></iframe>
     </div>
 

@@ -329,6 +329,8 @@ const S = {
   confirmResult: null, recaptcha: null,
   _inflight: {},
   _visHandler: null,       // FIX #2: store handler ref to remove on logout
+  playerStartTime: null,   // FIX #29: real progress tracking — timestamp when player opened
+  playerMovieId:   null,   // FIX #29: real progress tracking — current movie id
 };
 
 /* ── HELPERS ───────────────────────────────────────────────────── */
@@ -480,11 +482,13 @@ function refreshWLBtns(id) {
 function addHistory(movie) {
   if (!movie?.imdbID) return;
   const idx = S.history.findIndex(m => m.imdbID === movie.imdbID);
+  // FIX #29: preserve existing progress instead of generating a random fake value
+  const prevProgress = idx >= 0 ? (S.history[idx].progress || 0) : 0;
   if (idx >= 0) S.history.splice(idx, 1);
   S.history.unshift({
     imdbID: movie.imdbID, Title: movie.Title, Year: movie.Year,
     Poster: movie.Poster, Type: movie.Type, imdbRating: movie.imdbRating,
-    progress: Math.floor(Math.random() * 75) + 15, ts: Date.now(),
+    progress: prevProgress, ts: Date.now(),
   });
   S.history = S.history.slice(0, 12);
   Store.write('cs_cw', S.history);
@@ -1305,6 +1309,10 @@ async function openPlayer(id, season, episode) {
   $('#playerBg')?.classList.add('open');
   document.body.style.overflow = 'hidden';
 
+  // FIX #29: record start time for real progress tracking
+  S.playerStartTime = Date.now();
+  S.playerMovieId   = id;
+
   const titleEl = $('#playerTitle');
   if (titleEl) titleEl.textContent = movie.Title;
 
@@ -1565,6 +1573,25 @@ function formatSize(bytes) {
 
 // ── Close player ──────────────────────────────────────────────────
 function closePlayer() {
+  // FIX #29: calculate real progress from elapsed watch time vs movie runtime
+  if (S.playerStartTime && S.playerMovieId) {
+    const elapsed = Date.now() - S.playerStartTime;
+    if (elapsed > 30000) { // only count if watched more than 30 seconds
+      const movie   = MovieCache.get(S.playerMovieId);
+      const runtimeMin = parseInt(movie?.Runtime) || 90; // fallback: 90 min
+      const runtimeMs  = runtimeMin * 60 * 1000;
+      const entry = S.history.find(m => m.imdbID === S.playerMovieId);
+      if (entry) {
+        const newProgress = Math.min(Math.round((elapsed / runtimeMs) * 100), 99);
+        entry.progress = Math.max(entry.progress || 0, newProgress);
+        Store.write('cs_cw', S.history);
+        populateRow(ROWS[0]); // refresh Continue Watching row
+      }
+    }
+    S.playerStartTime = null;
+    S.playerMovieId   = null;
+  }
+
   $('#playerBg')?.classList.remove('open');
   document.body.style.overflow = '';
   const f = $('#playerFrame'); if (f) f.src = 'about:blank';
