@@ -1,8 +1,8 @@
-const CACHE     = 'cinestream-v4';
-const API_CACHE = 'cinestream-api-v4';
-const IMG_CACHE = 'cinestream-img-v4';
+const CACHE     = 'cinestream-v5';
+const API_CACHE = 'cinestream-api-v5';
+const IMG_CACHE = 'cinestream-img-v5';
 
-const STATIC = ['./', './index.html', './style.css', './app.js', './manifest.json'];
+const STATIC = ['./','./index.html','./style.css','./app.js','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
 const API_TTL_MS  = 48 * 60 * 60 * 1000; // 48 h — matches app CFG
 const IMG_MAX     = 200;                  // max cached images
 
