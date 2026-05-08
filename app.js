@@ -1,13 +1,15 @@
 'use strict';
 /* ═══════════════════════════════════════════════════════════════
-   CineStream v3.2 — app.js  (FULLY DEBUGGED)
-   Fixes applied: 28 bugs / performance / security / structural
+   CineStream v3.2 — app.js  (FULLY DEBUGGED + REVIEW FIXES)
+   Fixes applied: 30 bugs / performance / security / structural
 ═══════════════════════════════════════════════════════════════ */
 
 // ── AUTH (Local only — no Firebase) ─────────────────────────────
 
 // ── APP CONFIG ───────────────────────────────────────────────────
 const CFG = {
+  // ⚠️ WARNING: API key exposed in client-side code.
+  // In production you MUST proxy requests through your own backend.
   OMDB_KEY:     '4b251b1e',
   OMDB:         'https://www.omdbapi.com/',
   PLAY:         'https://www.playimdb.com/title/',
@@ -17,10 +19,10 @@ const CFG = {
   HERO_MS:      7000,
   CACHE_TTL_MS: 48 * 60 * 60 * 1000,   // 48 h
   CACHE_MAX:    120,
-  BATCH_SIZE:   3,                       // FIX #11: rate-limit concurrent fetches
+  BATCH_SIZE:   3,
   DEMO_USER:    { uid:'guest', name:'Guest', email:'guest@cinestream.app', photo:'' },
-  STORE_VER:    2,                       // bump when storage schema changes
-  FETCH_RETRIES: 2,                      // retry failed API calls
+  STORE_VER:    2,
+  FETCH_RETRIES: 2,
 };
 
 const ROWS = [
@@ -31,75 +33,47 @@ const ROWS = [
   // ── 1. NOW IN THEATERS (صدر فعلاً في 2026) ─────────────────────
   { id:'now2026', title:'🎬 Now in Theaters',
     ids:[
-      'tt32141377', // 28 Years Later: The Bone Temple  (Jan 16)  ⭐7.5
-      'tt12042730', // Project Hail Mary  (Mar 20)                ⭐8.7
-      'tt28650488', // The Super Mario Galaxy Movie  (Apr 1)
-      'tt14539740', // Mickey 17  (2025)
-      'tt15474026', // Captain America: Brave New World  (2025)
-      'tt21692408', // Thunderbolts  (2025)
+      'tt32141377', 'tt12042730', 'tt28650488',
+      'tt14539740', 'tt15474026', 'tt21692408',
     ]},
 
   // ── 2. COMING SOON (لم يصدر بعد — May 2026 فصاعداً) ───────────
   { id:'soon2026', title:'📅 Coming Soon',
     ids:[
-      'tt30825738', // The Mandalorian & Grogu     May 22
-      'tt29355505', // Toy Story 5                 Jun 19
-      'tt33764258', // The Odyssey — Nolan          Jul 17
-      'tt22084616', // Spider-Man: Brand New Day    Jul 31
-      'tt21357150', // Avengers: Doomsday           Dec 18
-      'tt31378509', // Dune: Part Three             Dec 18
+      'tt30825738','tt29355505','tt33764258',
+      'tt22084616','tt21357150','tt31378509',
     ]},
 
   // ── 3. MOST POPULAR THIS WEEK ──────────────────────────────────
   { id:'popular', title:'🔥 Most Popular This Week',
     ids:[
-      'tt12042730', // Project Hail Mary
-      'tt28650488', // Super Mario Galaxy Movie
-      'tt30825738', // Mandalorian & Grogu
-      'tt21823606', // Dune: Part Two
-      'tt9603212',  // Deadpool & Wolverine
-      'tt22687790', // Gladiator II
-      'tt11198330', // The Last of Us S2
-      'tt21276558', // Severance S2
+      'tt12042730','tt28650488','tt30825738',
+      'tt21823606','tt9603212','tt22687790',
+      'tt11198330','tt21276558',
     ]},
 
   // ── 4. MOST POPULAR ON TV ──────────────────────────────────────
   { id:'popularTV', title:'📺 Most Popular on TV',
     ids:[
-      'tt11198330', // The Last of Us S2
-      'tt21276558', // Severance S2
-      'tt21255044', // Shōgun  ⭐8.6
-      'tt15398776', // Fallout
-      'tt13560574', // 3 Body Problem
-      'tt10234724', // The Boys S4
-      'tt14544192', // House of the Dragon S2
-      'tt20766284', // Ripley
+      'tt11198330','tt21276558','tt21255044',
+      'tt15398776','tt13560574','tt10234724',
+      'tt14544192','tt20766284',
     ]},
 
   // ── 5. FAN FAVORITES (تقييم 8.0+) ─────────────────────────────
   { id:'fanfav', title:'⭐ Fan Favorites',
     ids:[
-      'tt0111161',  // The Shawshank Redemption  9.3
-      'tt0468569',  // The Dark Knight           9.0
-      'tt1375666',  // Inception                 8.8
-      'tt0816692',  // Interstellar              8.7
-      'tt12042730', // Project Hail Mary         8.7
-      'tt21255044', // Shōgun                    8.6
-      'tt4154796',  // Avengers: Endgame         8.4
-      'tt21823606', // Dune: Part Two            8.5
+      'tt0111161','tt0468569','tt1375666',
+      'tt0816692','tt12042730','tt21255044',
+      'tt4154796','tt21823606',
     ]},
 
   // ── 6. TOP RATED ALL TIME (IMDb Top 250) ───────────────────────
   { id:'top250', title:'🏆 Top Rated All Time',
     ids:[
-      'tt0111161',  // The Shawshank Redemption  9.3
-      'tt0068646',  // The Godfather             9.2
-      'tt0071562',  // The Godfather Part II     9.0
-      'tt0468569',  // The Dark Knight           9.0
-      'tt0050083',  // 12 Angry Men              9.0
-      'tt0108052',  // Schindler's List          9.0
-      'tt0137523',  // Fight Club                8.8
-      'tt1375666',  // Inception                 8.8
+      'tt0111161','tt0068646','tt0071562',
+      'tt0468569','tt0050083','tt0108052',
+      'tt0137523','tt1375666',
     ]},
 
   // ── 7. BY GENRE ────────────────────────────────────────────────
@@ -126,107 +100,84 @@ const ROWS = [
   // ── 8. DRAMA SERIES ────────────────────────────────────────────
   { id:'drama_series', title:'🎭 Drama Series',
     ids:[
-      'tt0944947', // Game of Thrones
-      'tt0903747', // Breaking Bad
-      'tt2356777', // True Detective
-      'tt4574334', // Stranger Things
-      'tt11198330',// The Last of Us
-      'tt21255044',// Shōgun 2024
-      'tt20766284',// Ripley 2024
-      'tt0386676',  // The Office
+      'tt0944947','tt0903747','tt2356777',
+      'tt4574334','tt11198330','tt21255044',
+      'tt20766284','tt0386676',
     ]},
 
   // ── 9. NATURE & EXPLORATION ────────────────────────────────────
   { id:'nature', title:'🌍 Nature & Exploration',
     ids:[
-      'tt39298503', // Wild London — Attenborough (2026)    ⭐8.1
-      'tt32869282', // Asia — BBC/Attenborough (2024)        ⭐8.6
-      'tt31971270', // Mammals — BBC/Attenborough (2024)     ⭐8.5
-      'tt0469049',  // Planet Earth (2006)                   ⭐9.4
-      'tt6760304',  // Blue Planet II (2017)                 ⭐9.3
-      'tt8110460',  // Our Planet — Netflix (2019)           ⭐9.3
-      'tt10001378', // Seven Worlds One Planet (2019)        ⭐9.1
-      'tt5491994',  // Planet Earth II (2016)                ⭐9.4
+      'tt39298503','tt32869282','tt31971270',
+      'tt0469049','tt6760304','tt8110460',
+      'tt10001378','tt5491994',
     ]},
 
   // ── 10. DOCUMENTARY ────────────────────────────────────────────
   { id:'docs', title:'🎬 Documentary',
     ids:[
-      'tt12888462', // My Octopus Teacher (2020)   Oscar
-      'tt7775622',  // Free Solo (2018)            Oscar ⭐8.2
-      'tt8420184',  // The Last Dance (2020)        ⭐9.1
-      'tt5189670',  // Making a Murderer (2015)     ⭐8.6
-      'tt3288592',  // The Jinx (2015)              ⭐8.7
-      'tt2234222',  // Blackfish (2013)             ⭐8.1
-      'tt1517451',  // Exit Through the Gift Shop   ⭐7.9
-      'tt0816575',  // An Inconvenient Truth        ⭐7.4
+      'tt12888462','tt7775622','tt8420184',
+      'tt5189670','tt3288592','tt2234222',
+      'tt1517451','tt0816575',
     ]},
 
   // ── 11. TRUE CRIME ─────────────────────────────────────────────
   { id:'truecrime', title:'🔍 True Crime',
     ids:[
-      'tt5189670',  // Making a Murderer
-      'tt3288592',  // The Jinx
-      'tt11823076', // Tiger King (2020)
-      'tt11455292', // Don't F**k with Cats (2019)
-      'tt9174558',  // The Keepers (2017)           ⭐8.2
-      'tt4878800',  // Amanda Knox (2016)
-      'tt8364978',  // Evil Genius (2018)
-      'tt31556143', // Homicide (2024–2026)          ⭐8.4
+      'tt5189670','tt3288592','tt11823076',
+      'tt11455292','tt9174558','tt4878800',
+      'tt8364978','tt31556143',
     ]},
 
   // ── 12. SCIENCE & SPACE ────────────────────────────────────────
   { id:'science', title:'🔭 Science & Space',
     ids:[
-      'tt2395695',  // Cosmos: A Spacetime Odyssey (2014)   ⭐9.3
-      'tt0081846',  // Cosmos — Carl Sagan (1980)           ⭐9.3
-      'tt14216232', // Life on Our Planet (2023)
-      'tt8110460',  // Our Planet
-      'tt0103984',  // A Brief History of Time (1991)
-      'tt1302814',  // Into the Universe with Stephen Hawking
-      'tt12042730', // Project Hail Mary (2026)
-      'tt0816692',  // Interstellar
+      'tt2395695','tt0081846','tt14216232',
+      'tt8110460','tt0103984','tt1302814',
+      'tt12042730','tt0816692',
     ]},
 
   // ── 13. REALITY & SURVIVAL ─────────────────────────────────────
   { id:'reality', title:'🏕️ Reality & Survival',
     ids:[
-      'tt4803766',  // Alone (2015–)                 ⭐8.2
-      'tt0382650',  // Man vs. Wild (2006–)
-      'tt0364784',  // Survivor (2000–)
-      'tt0363307',  // MythBusters (2003–)
-      'tt1843323',  // The Amazing Race
-      'tt6741278',  // Dark (Germany)
-      'tt0285331',  // The Amazing Race
-      'tt3107288',  // Chef's Table (2015)           ⭐8.6
+      'tt4803766','tt0382650','tt0364784',
+      'tt0363307','tt1843323','tt6741278',
+      'tt0285331','tt3107288',
     ]},
 ];
 
 const MOVIE_IDS = [
-  'tt32141377','tt12042730','tt28650488', // 2026 — released
-  'tt30825738','tt33764258','tt21357150', // 2026 — coming
-  'tt21823606','tt9603212','tt6263850',   // 2024
-  'tt14539740','tt15474026','tt21692408', // 2025
-  'tt0468569','tt0111161','tt1375666',    // classics
+  'tt32141377','tt12042730','tt28650488',
+  'tt30825738','tt33764258','tt21357150',
+  'tt21823606','tt9603212','tt6263850',
+  'tt14539740','tt15474026','tt21692408',
+  'tt0468569','tt0111161','tt1375666',
 ];
 const SERIES_IDS = [
-  'tt11198330','tt21276558',               // 2025
-  'tt21255044','tt15398776','tt13560574',  // 2024
+  'tt11198330','tt21276558',
+  'tt21255044','tt15398776','tt13560574',
   'tt10234724','tt14544192','tt20766284',
-  'tt0944947','tt0903747','tt4574334',     // drama classics
+  'tt0944947','tt0903747','tt4574334',
   'tt5491994','tt0386676','tt2861424',
-  'tt32869282','tt31971270','tt39298503',  // nature
+  'tt32869282','tt31971270','tt39298503',
   'tt0469049','tt6760304','tt8110460',
-  'tt5189670','tt3288592','tt11823076',    // true crime
-  'tt2395695','tt4803766','tt3107288',     // science / reality
+  'tt5189670','tt3288592','tt11823076',
+  'tt2395695','tt4803766','tt3107288',
 ];
 const GENRES     = ['All','Action','Adventure','Comedy','Crime','Drama','Fantasy','Horror','Romance','Sci-Fi','Thriller','Animation'];
 
 // ── VALID IMDb ID ────────────────────────────────────────────────
-// FIX #20: validate all IMDb IDs before using in URLs
 const IMDB_RE = /^tt\d{7,8}$/;
 function validId(id) { return typeof id === 'string' && IMDB_RE.test(id); }
 function safePlayUrl(id) { return validId(id) ? CFG.PLAY + id : '#'; }
+
+// ── URL sanitizer (FIX #30) ──────────────────────────────────────
+function sanitizeUrl(url) {
+  if (typeof url !== 'string') return '#';
+  url = url.trim();
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return '#';
+}
 
 /* ══════════════════════════════════════════════════════
    SMART STORAGE  — safe reads, LRU+TTL cache, quota guard
@@ -259,7 +210,6 @@ const Store = (() => {
 (function migrateStore() {
   const ver = Store.read('cs_ver', 0);
   if (ver < CFG.STORE_VER) {
-    // On version bump: evict stale API cache & search history only
     if (ver < 2) { Store.remove('cs_cache'); Store.remove('cs_sq'); }
     Store.write('cs_ver', CFG.STORE_VER);
     console.info('[Store] Migrated to v' + CFG.STORE_VER);
@@ -301,7 +251,6 @@ const MovieCache = (() => {
     },
     set(id, data) {
       _store[id] = { data, ts: Date.now() };
-      // FIX #12: enforce CACHE_MAX on every write, not just at boot
       const keys = Object.keys(_store);
       if (keys.length > CFG.CACHE_MAX) {
         keys.sort((a, b) => (_store[a].ts || 0) - (_store[b].ts || 0))
@@ -325,12 +274,12 @@ const S = {
   activeView: 'home', activeGenre: 'All',
   installEvt: null,
   searchTimer: null,
-  searchToken: 0,          // FIX #1: token to discard stale search results
+  searchToken: 0,
   confirmResult: null, recaptcha: null,
   _inflight: {},
-  _visHandler: null,       // FIX #2: store handler ref to remove on logout
-  playerStartTime: null,   // FIX #29: real progress tracking — timestamp when player opened
-  playerMovieId:   null,   // FIX #29: real progress tracking — current movie id
+  _visHandler: null,
+  playerStartTime: null,
+  playerMovieId:   null,
 };
 
 /* ── HELPERS ───────────────────────────────────────────────────── */
@@ -338,7 +287,6 @@ const $  = (s, c=document) => c.querySelector(s);
 const $$ = (s, c=document) => [...c.querySelectorAll(s)];
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
-// XSS-safe escape for innerHTML insertion
 function esc(s) {
   if (s == null) return '';
   const d = document.createElement('div');
@@ -367,7 +315,6 @@ function loadImg(img, src, cls='on') {
 }
 
 /* ── API ───────────────────────────────────────────────────────── */
-// Retry helper: exponential back-off, respects offline state
 async function fetchWithRetry(url, retries = CFG.FETCH_RETRIES) {
   for (let i = 0; i <= retries; i++) {
     try {
@@ -381,11 +328,9 @@ async function fetchWithRetry(url, retries = CFG.FETCH_RETRIES) {
   }
 }
 
-// In-memory search cache: avoids re-fetching identical queries
-const _searchCache = new Map(); // query → { movies, total, ts }
-const SEARCH_CACHE_TTL = 5 * 60 * 1000; // 5 min
+const _searchCache = new Map();
+const SEARCH_CACHE_TTL = 5 * 60 * 1000;
 
-// Promise dedup: concurrent calls for same id share one fetch
 async function fetchMovie(id) {
   if (!validId(id)) return null;
   const cached = MovieCache.get(id);
@@ -410,7 +355,6 @@ async function fetchMovie(id) {
   return p;
 }
 
-// FIX #11: batch fetches to avoid overwhelming the API
 async function fetchBatch(ids) {
   const results = [];
   for (let i = 0; i < ids.length; i += CFG.BATCH_SIZE) {
@@ -431,7 +375,6 @@ async function searchOMDb(q, page=1) {
     const r = await fetchWithRetry(CFG.OMDB + '?s=' + encodeURIComponent(q) + '&page=' + page + '&apikey=' + CFG.OMDB_KEY);
     const d = await r.json();
     if (d.Response === 'True') {
-      // FIX #20: only cache valid IMDb IDs from search results
       (d.Search || []).forEach(m => { if (validId(m.imdbID) && !MovieCache.get(m.imdbID)) MovieCache.set(m.imdbID, m); });
       const result = { movies: d.Search || [], total: +d.totalResults || 0 };
       _searchCache.set(cacheKey, { ...result, ts: Date.now() });
@@ -465,7 +408,6 @@ function toggleWatchlist(movie) {
   refreshWatchlistView();
 }
 
-// FIX #9: manipulate DOM nodes safely without innerHTML
 function refreshWLBtns(id) {
   const in_ = isWL(id);
   $$('[data-wl="' + id + '"]').forEach(btn => {
@@ -482,7 +424,6 @@ function refreshWLBtns(id) {
 function addHistory(movie) {
   if (!movie?.imdbID) return;
   const idx = S.history.findIndex(m => m.imdbID === movie.imdbID);
-  // FIX #29: preserve existing progress instead of generating a random fake value
   const prevProgress = idx >= 0 ? (S.history[idx].progress || 0) : 0;
   if (idx >= 0) S.history.splice(idx, 1);
   S.history.unshift({
@@ -501,16 +442,14 @@ function buildCard(movie, opts={}) {
   card.className = 'card' + (wide ? ' w' : '');
   card.dataset.id = movie.imdbID;
 
-  // Poster wrapper
   const poster = document.createElement('div');
   poster.className = 'card-poster';
 
-  // Placeholder
   const ph = document.createElement('div');
   ph.className = 'card-ph';
   ph.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>';
   const phSpan = document.createElement('span');
-  phSpan.textContent = movie.Title || '';    // FIX #10: textContent not innerHTML
+  phSpan.textContent = movie.Title || '';
   ph.appendChild(phSpan);
 
   const img = document.createElement('img');
@@ -520,7 +459,6 @@ function buildCard(movie, opts={}) {
   poster.appendChild(ph);
   poster.appendChild(img);
 
-  // Rating badge
   if (movie.imdbRating && movie.imdbRating !== 'N/A') {
     const badge = document.createElement('div');
     badge.className = 'card-badge';
@@ -529,7 +467,6 @@ function buildCard(movie, opts={}) {
     poster.appendChild(badge);
   }
 
-  // Heart / watchlist
   const in_wl = isWL(movie.imdbID);
   const heart = document.createElement('button');
   heart.className = 'card-heart' + (in_wl ? ' liked' : '');
@@ -550,7 +487,6 @@ function buildCard(movie, opts={}) {
   });
   poster.appendChild(heart);
 
-  // Hover overlay
   const over = document.createElement('div');
   over.className = 'card-over';
   over.innerHTML =
@@ -561,7 +497,6 @@ function buildCard(movie, opts={}) {
     + '<span>' + esc(movie.Year) + '</span></div>';
   poster.appendChild(over);
 
-  // Continue-watching extras
   if (cw) {
     const prog = document.createElement('div'); prog.className = 'card-prog';
     const bar  = document.createElement('div'); bar.className  = 'card-prog-bar';
@@ -600,7 +535,6 @@ function buildRow(row) {
   const sec = document.createElement('div');
   sec.className = 'row'; sec.id = 'row-' + row.id;
 
-  // FIX #13: use textContent for title to avoid any injection risk
   const header = document.createElement('div'); header.className = 'row-header';
   const h2 = document.createElement('h2'); h2.className = 'row-title';
   h2.textContent = row.title;
@@ -633,7 +567,6 @@ async function populateRow(row) {
   }
 
   try {
-    // FIX #11: use batched fetch instead of all-at-once
     const res   = await fetchBatch(row.ids);
     const valid = res.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
     slider.innerHTML = '';
@@ -650,14 +583,9 @@ async function populateRow(row) {
 
 /* ── HERO ──────────────────────────────────────────────────────── */
 async function initHero() {
-  // 2025 first, then 2024, then a classic fallback
   const ids = [
-    'tt12042730', // Project Hail Mary (2026)        ⭐8.7
-    'tt32141377', // 28 Years Later: The Bone Temple (2026)
-    'tt28650488', // The Super Mario Galaxy Movie (2026)
-    'tt30825738', // The Mandalorian & Grogu (Coming May 2026)
-    'tt33764258', // The Odyssey — Nolan (Coming Jul 2026)
-    'tt21357150', // Avengers: Doomsday (Coming Dec 2026)
+    'tt12042730','tt32141377','tt28650488',
+    'tt30825738','tt33764258','tt21357150',
   ];
   const res  = await Promise.allSettled(ids.map(id => fetchMovie(id)));
   S.heroMovies = res.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
@@ -665,7 +593,6 @@ async function initHero() {
 
   renderHero(0); buildDots(); startHeroTimer();
 
-  // FIX #2: store handler ref so we can remove it cleanly on logout
   if (S._visHandler) document.removeEventListener('visibilitychange', S._visHandler);
   S._visHandler = () => {
     if (document.hidden) clearInterval(S.heroInterval);
@@ -693,7 +620,6 @@ function renderHero(idx) {
   set('#heroPlot',    m.Plot    && m.Plot    !== 'N/A' ? m.Plot    : '');
   set('#heroRating',  m.imdbRating && m.imdbRating !== 'N/A' ? '⭐ ' + m.imdbRating : '');
 
-  // FIX #20: validate ID before building URL
   const pb = $('#heroPlay');
   if (pb) {
     pb.removeAttribute('href');
@@ -702,7 +628,6 @@ function renderHero(idx) {
     pb.dataset.imdbId = m.imdbID;
     pb.onclick = (e) => { e.preventDefault(); openPlayer(m.imdbID); };
   }
-  // FIX #17: add noreferrer to external link
   if (pb) pb.rel = 'noopener noreferrer';
 
   const ib = $('#heroInfo'); if (ib) ib.dataset.id = m.imdbID;
@@ -754,13 +679,11 @@ function buildGenreBar() {
   });
 }
 
-// FIX #14: only filter rows where we have cached data; skip CW row
 function filterRows(genre) {
   $$('.row').forEach(row => {
     if (row.id === 'row-cw') return;
     if (genre === 'All') { row.style.display = ''; return; }
     const cards = $$('.card', row);
-    // FIX #14: only count cards with cached data — unloaded cards are hidden
     const any = cards.some(card => {
       const m = MovieCache.get(card.dataset.id);
       return m && m.Genre && m.Genre.toLowerCase().includes(genre.toLowerCase());
@@ -771,12 +694,11 @@ function filterRows(genre) {
 
 /* ── MODAL ─────────────────────────────────────────────────────── */
 async function openModal(id, push = true) {
-  if (!validId(id)) return;  // FIX #20
+  if (!validId(id)) return;
   if (push && S.appBooted) history.pushState({ modal: id, prevView: S.activeView }, '', '#title/' + id);
   const bg = $('#modalBg'), modal = $('#modal');
   if (!bg || !modal) return;
 
-  // FIX #3: session token to discard stale async callbacks
   const session = Symbol();
   modal._session = session;
 
@@ -785,7 +707,7 @@ async function openModal(id, push = true) {
   document.body.style.overflow = 'hidden';
 
   const m = MovieCache.get(id) || await fetchMovie(id);
-  if (modal._session !== session) return; // modal was replaced
+  if (modal._session !== session) return;
 
   if (!m) {
     modal.innerHTML = '<div style="padding:3rem;text-align:center;color:var(--text2)">Could not load data.<br><button id="mcb" style="margin-top:1rem;background:var(--red);border:none;color:white;padding:8px 20px;border-radius:8px;cursor:pointer;font-family:inherit;">Close</button></div>';
@@ -798,7 +720,7 @@ async function openModal(id, push = true) {
   const genres = m.Genre ? m.Genre.split(', ') : [];
   const stars  = S.ratings[id] || 0;
   const inWL   = isWL(id);
-  const playUrl = safePlayUrl(id); // FIX #20: validated URL
+  const playUrl = safePlayUrl(id);
 
   modal.innerHTML =
     '<div class="modal-hero">'
@@ -845,10 +767,8 @@ async function openModal(id, push = true) {
 
   loadImg($('#modalImg'), m.Poster, 'on');
 
-  // FIX #16: no onclick=closeModal() global, use event listener
   $('#modalCloseBtn')?.addEventListener('click', closeModal);
 
-  // Stars — keyboard accessible too
   $$('.star', modal).forEach(s => {
     const handler = () => {
       const n = +s.dataset.n; S.ratings[id] = n; Store.write('cs_stars', S.ratings);
@@ -900,7 +820,6 @@ async function loadSimilar(movie, genre, session) {
   });
 }
 
-// FIX #16: not exposed on window — called via event listener only
 function closeModal(goBack = true) {
   if (goBack && history.state?.modal) { history.back(); return; }
   _doCloseModal();
@@ -910,7 +829,6 @@ function _doCloseModal() {
   document.body.style.overflow = '';
   const m = $('#modal'); if (m) m._session = null;
 }
-// Minimal global exposure needed for fallback close button only
 window._csCloseModal = closeModal;
 
 /* ── VIEWS ─────────────────────────────────────────────────────── */
@@ -920,7 +838,6 @@ function showView(name, push = true) {
   $$('.nav-pill').forEach(p => p.classList.toggle('active', p.dataset.view === name));
   $('#viewHome')?.classList.toggle('hidden', name !== 'home');
 
-  // FIX #15: explicit mapping instead of fragile string manipulation
   const viewMap = { movies:'viewMovies', series:'viewSeries', watchlist:'viewWatchlist' };
   ['viewMovies','viewSeries','viewWatchlist'].forEach(vid => {
     $(('#' + vid))?.classList.toggle('active', vid === viewMap[name]);
@@ -935,7 +852,6 @@ async function populatePageGrid(gridId, ids) {
   const g = $(('#' + gridId)); if (!g || g.dataset.loaded) return;
   g.dataset.loaded = '1';
   ids.forEach(() => g.appendChild(buildSkel()));
-  // FIX #11: batched fetching
   const res = await fetchBatch(ids);
   g.innerHTML = '';
   res.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value).forEach(m => g.appendChild(buildCard(m)));
@@ -961,9 +877,8 @@ function openSearch() {
   renderHistoryTags();
 }
 
-// FIX #4: clear pending debounce timer when search is closed
 function closeSearch() {
-  clearTimeout(S.searchTimer); // FIX #4
+  clearTimeout(S.searchTimer);
   S.searchTimer = null;
   $('#searchOverlay')?.classList.remove('open');
   document.body.style.overflow = '';
@@ -980,19 +895,17 @@ function renderHistoryTags() {
   S.searches.slice(0, 8).forEach(q => {
     const tag = document.createElement('div'); tag.className = 'history-tag';
     tag.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>';
-    tag.appendChild(document.createTextNode(q)); // FIX #10: safe text insertion
+    tag.appendChild(document.createTextNode(q));
     tag.addEventListener('click', () => { const i = $('#searchInput'); if (i) i.value = q; doSearch(q); });
     c.appendChild(tag);
   });
 }
 
-// FIX #1: token-based race condition prevention for search
 async function doSearch(q) {
   const statusEl = $('#searchStatus'), resEl = $('#searchResults'), histEl = $('#searchHistory');
   if (!statusEl || !resEl) return;
   if (!q || q.length < 2) return;
 
-  // Increment token — any earlier async call with a smaller token is stale
   const token = ++S.searchToken;
 
   statusEl.textContent = 'Searching…'; resEl.innerHTML = ''; histEl?.classList.add('hidden');
@@ -1001,9 +914,7 @@ async function doSearch(q) {
 
   const { movies, total } = await searchOMDb(q);
 
-  // FIX #1: discard stale result
   if (token !== S.searchToken) return;
-  // FIX #1: discard if overlay was closed
   if (!$('#searchOverlay')?.classList.contains('open')) return;
 
   statusEl.textContent = total ? total.toLocaleString() + ' results for "' + q + '"' : 'No results for "' + q + '"';
@@ -1020,16 +931,20 @@ async function doSearch(q) {
 }
 
 // ── AUTH (Local only) ─────────────────────────────────────────────
-// Simple local users stored in localStorage — no Firebase needed
 const LocalAuth = (() => {
   const KEY = 'cs_users';
   function all() { return Store.read(KEY, {}); }
   function save(users) { Store.write(KEY, users); }
-  // Simple hash to avoid plaintext passwords in localStorage
+  // FIX #30: still not production‑grade – for local demo only
   function hashPass(pass) {
-    let h = 0;
-    for (let i = 0; i < pass.length; i++) { h = Math.imul(31, h) + pass.charCodeAt(i) | 0; }
-    return 'h' + Math.abs(h).toString(36);
+    const salt = 'cinestream_salt_2024';
+    let h1 = 0, h2 = 0;
+    const str = salt + pass;
+    for (let i = 0; i < str.length; i++) {
+      h1 = Math.imul(31, h1) + str.charCodeAt(i) | 0;
+      h2 = Math.imul(17, h2) + (str.charCodeAt(i) ^ (i % 31)) | 0;
+    }
+    return 'sh' + Math.abs(h1).toString(36) + Math.abs(h2).toString(36);
   }
 
   return {
@@ -1054,10 +969,8 @@ function setupAuthUI() {
   function showErr(msg) { const el = $('#authError'); if (!el) return; el.textContent = msg; el.classList.add('show'); }
   function clearErr()   { const el = $('#authError'); if (!el) return; el.textContent = ''; el.classList.remove('show'); }
 
-  // Auto-focus email field
   setTimeout(() => $('#authEmail')?.focus(), 300);
 
-  // Password toggle
   $('#passwordToggle')?.addEventListener('click', () => {
     const input = $('#authPassword');
     const btn = $('#passwordToggle');
@@ -1068,7 +981,6 @@ function setupAuthUI() {
     btn.querySelector('.eye-closed')?.classList.toggle('hidden', !isPassword);
   });
 
-  // Guest button - primary action
   $('#btnGuest')?.addEventListener('click', () => {
     S.user = { ...CFG.DEMO_USER };
     Store.write('cs_user', S.user);
@@ -1076,7 +988,6 @@ function setupAuthUI() {
     _handleInitialHash();
   });
 
-  // Smart auth button - handles both login and signup
   const btn = $('#btnAuth');
   const origText = btn?.textContent || 'Continue';
   
@@ -1103,7 +1014,6 @@ function setupAuthUI() {
     setLoading(true);
     
     try {
-      // Try login first
       const user = LocalAuth.login(email, pass);
       S.user = user;
       Store.write('cs_user', user);
@@ -1111,7 +1021,6 @@ function setupAuthUI() {
       _handleInitialHash();
     } catch(e) {
       if (e.message === 'not-found') {
-        // Account doesn't exist - create it automatically
         try {
           const name = email.split('@')[0];
           LocalAuth.register(email, pass, name);
@@ -1132,7 +1041,6 @@ function setupAuthUI() {
     }
   });
 
-  // Enter key handler
   $$('#authEmail, #authPassword').forEach(inp => {
     inp.addEventListener('keydown', e => {
       if (e.key === 'Enter') $('#btnAuth')?.click();
@@ -1160,10 +1068,9 @@ const P = {
   id: null, type: null,
   season: 1, episode: 1,
   totalSeasons: 1,
-  seasonCache: {},   // season# → OMDb season object
+  seasonCache: {},
 };
 
-// ── URL Builders ─────────────────────────────────────────────────
 function buildEmbedUrl(id, type, season, episode) {
   if (type === 'series' || type === 'episode') {
     return CFG.STREAM_TV + id + '?season=' + season + '&episode=' + episode;
@@ -1171,14 +1078,12 @@ function buildEmbedUrl(id, type, season, episode) {
   return CFG.STREAM_MOVIE + id;
 }
 
-// ── Progress persistence ─────────────────────────────────────────
 function saveProgress(id, season, episode) {
   const prog = Store.read('cs_progress', {});
   prog[id] = { season, episode, ts: Date.now() };
   Store.write('cs_progress', prog);
 }
 
-// ── Fetch real season/episode data from OMDb ─────────────────────
 async function fetchSeasonEpisodes(id, season) {
   if (P.seasonCache[season]) return P.seasonCache[season];
   try {
@@ -1191,7 +1096,6 @@ async function fetchSeasonEpisodes(id, season) {
   return null;
 }
 
-// ── Quality helpers ───────────────────────────────────────────────
 const QUALITY_ORDER = ['2160p','4k','1080p','720p','480p','360p','240p'];
 const QUALITY_META  = {
   '2160p': { label:'4K UHD', color:'#f59e0b', icon:'👑' },
@@ -1211,7 +1115,7 @@ function normalizeQuality(raw) {
   if (s.includes('fhd') || s.includes('1080')) return '1080p';
   if (s.includes('hd') || s.includes('720'))  return '720p';
   if (s.includes('sd') || s.includes('480'))  return '480p';
-  return raw; // keep original label if unknown
+  return raw;
 }
 
 function sortByQuality(streams) {
@@ -1225,8 +1129,6 @@ function sortByQuality(streams) {
   });
 }
 
-// ── Fetch real stream URLs from vaplayer API ──────────────────────
-// CORS may block this in browser — we handle that gracefully.
 async function fetchStreamLinks(id, season, episode) {
   const isTV = P.type === 'series' || P.type === 'episode';
   const url  = CFG.VAPLAYER_API + '?imdb=' + id
@@ -1250,7 +1152,6 @@ async function fetchStreamLinks(id, season, episode) {
 
   if (!raw?.length) return null;
 
-  // Normalize and tag each stream
   return raw
     .map(s => {
       const url   = s.url   || s.link   || s.src  || s.file || '';
@@ -1262,7 +1163,6 @@ async function fetchStreamLinks(id, season, episode) {
     .filter(s => s.url);
 }
 
-// ── Update iframe with current P state ───────────────────────────
 function updatePlayerFrame() {
   const frame = $('#playerFrame'); if (!frame) return;
   const loader = $('#playerLoader');
@@ -1274,7 +1174,6 @@ function updatePlayerFrame() {
   });
   frame.onload = () => loader?.classList.remove('on');
 
-  // Update S##·E## badge
   const badge = $('#playerEpBadge');
   if (badge) {
     const isTV = P.type === 'series' || P.type === 'episode';
@@ -1284,7 +1183,6 @@ function updatePlayerFrame() {
     badge.style.display = badge.textContent ? '' : 'none';
   }
 
-  // Highlight active episode card
   $$('.ep-card').forEach(c =>
     c.classList.toggle('active', +c.dataset.s === P.season && +c.dataset.e === P.episode)
   );
@@ -1292,7 +1190,6 @@ function updatePlayerFrame() {
   saveProgress(P.id, P.season, P.episode);
 }
 
-// ── Open player ───────────────────────────────────────────────────
 async function openPlayer(id, season, episode) {
   if (!validId(id)) return;
   const movie = MovieCache.get(id) || await fetchMovie(id);
@@ -1309,7 +1206,6 @@ async function openPlayer(id, season, episode) {
   $('#playerBg')?.classList.add('open');
   document.body.style.overflow = 'hidden';
 
-  // FIX #29: record start time for real progress tracking
   S.playerStartTime = Date.now();
   S.playerMovieId   = id;
 
@@ -1318,10 +1214,8 @@ async function openPlayer(id, season, episode) {
 
   updatePlayerFrame();
 
-  // Reset download panel
   $('#playerDlPanel')?.classList.add('hidden');
 
-  // Show episode picker only for series with real data
   const epsPanel = $('#playerEpisodes');
   const isTV = movie.Type === 'series' || movie.Type === 'episode';
   if (isTV && epsPanel) {
@@ -1335,7 +1229,6 @@ async function openPlayer(id, season, episode) {
   addHistory(movie);
 }
 
-// ── Season tabs ───────────────────────────────────────────────────
 function buildSeasonTabs() {
   const tabs = $('#seasonTabs'); if (!tabs) return;
   tabs.innerHTML = '';
@@ -1357,10 +1250,8 @@ function buildSeasonTabs() {
   }
 }
 
-// ── Episode grid (from real OMDb data only) ───────────────────────
 async function loadEpisodeGrid(id, season) {
   const grid = $('#epsGrid'); if (!grid) return;
-  // Skeleton while loading
   grid.innerHTML = '';
   for (let i = 0; i < 5; i++) {
     const sk = document.createElement('div'); sk.className = 'ep-skel skel';
@@ -1407,12 +1298,10 @@ async function loadEpisodeGrid(id, season) {
   });
 }
 
-// ── Download panel (real streams from vaplayer API) ───────────────
 async function openDownloadPanel() {
   const panel = $('#playerDlPanel');
   if (!panel) return;
 
-  // Toggle close
   if (!panel.classList.contains('hidden')) { panel.classList.add('hidden'); return; }
   panel.classList.remove('hidden');
 
@@ -1430,7 +1319,6 @@ async function openDownloadPanel() {
   if (data?.length) {
     const sorted = sortByQuality(data);
 
-    // Header
     const hdr = document.createElement('div');
     hdr.className = 'dl-header';
     hdr.innerHTML =
@@ -1441,7 +1329,6 @@ async function openDownloadPanel() {
     sorted.forEach((s, i) => streams.appendChild(buildQualityCard(s, i === 0)));
 
   } else {
-    // API blocked — show embed URL fallback
     const note = document.createElement('div');
     note.className = 'dl-note';
     note.innerHTML =
@@ -1456,7 +1343,6 @@ async function openDownloadPanel() {
   }
 }
 
-// ── Quality card ──────────────────────────────────────────────────
 function buildQualityCard(s, isBest) {
   const meta   = QUALITY_META[s._qkey] || { label: s.qraw || 'Stream', color: '#64748b', icon: '🎬' };
   const label  = meta.label;
@@ -1467,7 +1353,6 @@ function buildQualityCard(s, isBest) {
   const card = document.createElement('div');
   card.className = 'dl-quality-card' + (isBest ? ' dl-best' : '');
 
-  // Left: quality badge
   const left = document.createElement('div');
   left.className = 'dl-quality-left';
   left.innerHTML =
@@ -1478,20 +1363,20 @@ function buildQualityCard(s, isBest) {
     +   (isBest ? '<div class="dl-quality-best-tag">Best Quality</div>' : '')
     + '</div>';
 
-  // Right: action buttons
   const right = document.createElement('div');
   right.className = 'dl-quality-actions';
 
-  // Download button (triggers browser download)
+  // FIX #30: sanitize URL before building dangerous protocol links
+  const safeUrl = sanitizeUrl(s.url);
+
   const dlBtn = document.createElement('button');
   dlBtn.className = 'dl-action-btn dl-action-download';
   dlBtn.title = 'Download ' + label;
   dlBtn.innerHTML =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
     + '<span>Download</span>';
-  dlBtn.addEventListener('click', () => triggerDownload(s.url, label));
+  dlBtn.addEventListener('click', () => triggerDownload(safeUrl, label));
 
-  // Copy URL button
   const copyBtn = document.createElement('button');
   copyBtn.className = 'dl-action-btn dl-action-copy';
   copyBtn.title = 'Copy URL';
@@ -1499,23 +1384,22 @@ function buildQualityCard(s, isBest) {
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
     + '<span>Copy URL</span>';
   copyBtn.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(s.url); toast('📋 ' + label + ' URL copied!'); }
-    catch(e) { toast(s.url); }
+    if (safeUrl === '#') { toast('❌ Invalid URL'); return; }
+    try { await navigator.clipboard.writeText(safeUrl); toast('📋 ' + label + ' URL copied!'); }
+    catch(e) { toast(safeUrl); }
   });
 
-  // VLC button
   const vlcBtn = document.createElement('a');
   vlcBtn.className = 'dl-action-btn dl-action-vlc';
-  vlcBtn.href = 'vlc://' + s.url.replace(/^https?:\/\//, '');
+  vlcBtn.href = 'vlc://' + (safeUrl !== '#' ? safeUrl.replace(/^https?:\/\//, '') : '');
   vlcBtn.title = 'Open in VLC';
   vlcBtn.innerHTML =
     '<svg viewBox="0 0 24 24" fill="currentColor" width="14"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l7 4.5-7 4.5z"/></svg>'
     + '<span>VLC</span>';
 
-  // MX Player button (Android)
   const mxBtn = document.createElement('a');
   mxBtn.className = 'dl-action-btn dl-action-mx';
-  mxBtn.href = 'intent:' + s.url + '#Intent;package=com.mxtech.videoplayer.ad;end';
+  mxBtn.href = safeUrl !== '#' ? 'intent:' + safeUrl + '#Intent;package=com.mxtech.videoplayer.ad;end' : '#';
   mxBtn.title = 'Open in MX Player';
   mxBtn.innerHTML =
     '<svg viewBox="0 0 24 24" fill="currentColor" width="14"><path d="M8 5v14l11-7z"/></svg>'
@@ -1526,10 +1410,10 @@ function buildQualityCard(s, isBest) {
   return card;
 }
 
-// ── Trigger browser download ───────────────────────────────────────
 async function triggerDownload(url, label) {
+  url = sanitizeUrl(url);
+  if (url === '#') { toast('❌ Invalid download link'); return; }
   toast('⬇️ Starting download…');
-  // Try fetch → blob (works when CORS allows it)
   try {
     const r = await fetch(url, { headers: { Referer: 'https://streamimdb.ru/' } });
     if (r.ok) {
@@ -1547,7 +1431,6 @@ async function triggerDownload(url, label) {
     }
   } catch(e) { /* CORS blocked — fall through */ }
 
-  // Fallback: open URL directly (browser handles download)
   const a = document.createElement('a');
   a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
   a.download = (P.id || 'video') + '_' + label.replace(/\s/g,'_');
@@ -1571,21 +1454,19 @@ function formatSize(bytes) {
   return (bytes / 1e3).toFixed(0) + ' KB';
 }
 
-// ── Close player ──────────────────────────────────────────────────
 function closePlayer() {
-  // FIX #29: calculate real progress from elapsed watch time vs movie runtime
   if (S.playerStartTime && S.playerMovieId) {
     const elapsed = Date.now() - S.playerStartTime;
-    if (elapsed > 30000) { // only count if watched more than 30 seconds
+    if (elapsed > 30000) {
       const movie   = MovieCache.get(S.playerMovieId);
-      const runtimeMin = parseInt(movie?.Runtime) || 90; // fallback: 90 min
+      const runtimeMin = parseInt(movie?.Runtime) || 90;
       const runtimeMs  = runtimeMin * 60 * 1000;
       const entry = S.history.find(m => m.imdbID === S.playerMovieId);
       if (entry) {
         const newProgress = Math.min(Math.round((elapsed / runtimeMs) * 100), 99);
         entry.progress = Math.max(entry.progress || 0, newProgress);
         Store.write('cs_cw', S.history);
-        populateRow(ROWS[0]); // refresh Continue Watching row
+        populateRow(ROWS[0]);
       }
     }
     S.playerStartTime = null;
@@ -1606,7 +1487,6 @@ function bootApp() {
   $('#authScreen')?.classList.add('hidden');
   $('#app')?.classList.remove('hidden');
 
-  // Update user UI
   const u = S.user, av = $('#userAvatar');
   if (av && u) {
     if (u.photo) {
@@ -1632,8 +1512,6 @@ function bootApp() {
     });
   }
   initHero();
-  // Use IntersectionObserver to load rows only when they scroll into view
-  // Falls back to immediate load if IO not supported
   if ('IntersectionObserver' in window) {
     const io = new IntersectionObserver((entries, obs) => {
       entries.forEach(entry => {
@@ -1664,14 +1542,10 @@ function setupAppEvents() {
   $('#logoutBtn')?.addEventListener('click', () => {
     Store.remove('cs_user');
     S.user = null; S.appBooted = false;
-    // FIX #2: remove visibilitychange listener on logout
     if (S._visHandler) { document.removeEventListener('visibilitychange', S._visHandler); S._visHandler = null; }
     clearInterval(S.heroInterval); S.heroInterval = null;
-    // FIX #5: reset hero state fully
     S.heroMovies = []; S.heroIdx = 0;
-    // FIX #4: cancel any pending search
     clearTimeout(S.searchTimer); S.searchTimer = null;
-    // Reset loaded grids so they reload on next login
     ['moviesGrid','seriesGrid'].forEach(id => { const g = $(('#' + id)); if (g) { g.innerHTML = ''; delete g.dataset.loaded; } });
     const c = $('#content'); if (c) c.innerHTML = '';
     $('#app')?.classList.add('hidden');
@@ -1704,7 +1578,6 @@ function setupAppEvents() {
     $('#userDropdown')?.classList.remove('open');
   });
 
-  // Keyboard shortcuts
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       if ($('#playerBg')?.classList.contains('open')) { closePlayer(); return; }
@@ -1714,10 +1587,8 @@ function setupAppEvents() {
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openSearch(); }
   });
 
-  // ── PLAYER CONTROLS ────────────────────────────────────────────
   $('#playerCloseBtn')?.addEventListener('click', closePlayer);
   $('#playerDlBtn')?.addEventListener('click', openDownloadPanel);
-  // Close player when clicking the dark backdrop (outside the modal)
   $('#playerBg')?.addEventListener('click', e => { if (e.target === $('#playerBg')) closePlayer(); });
 
   window.addEventListener('scroll', () => $('#nav')?.classList.toggle('scrolled', window.scrollY > 50), { passive: true });
@@ -1731,12 +1602,11 @@ function setupAppEvents() {
   });
   window.addEventListener('appinstalled', () => { toast('✅ App installed!'); $('#installBtn')?.classList.remove('show'); });
 
-  // ── BACK / FORWARD NAVIGATION ──────────────────────────────────
   window.addEventListener('popstate', e => {
     if (!S.appBooted) return;
     const st = e.state;
     if (st?.modal) {
-      _doCloseModal(); // close current if any, then open target
+      _doCloseModal();
       openModal(st.modal, false);
     } else if (st?.view) {
       _doCloseModal();
@@ -1747,11 +1617,9 @@ function setupAppEvents() {
     }
   });
 
-  // ── NETWORK STATUS ─────────────────────────────────────────────
   window.addEventListener('offline', () => toast('⚠️ You\'re offline — showing cached content'));
   window.addEventListener('online',  () => {
     toast('✅ Back online!');
-    // Re-attempt hero if it failed while offline
     if (!S.heroMovies.length) initHero();
   });
 
@@ -1766,12 +1634,10 @@ function setupAppEvents() {
 document.addEventListener('DOMContentLoaded', () => {
   setupAuthUI();
 
-  // Restore persisted session
   const saved = Store.read('cs_user', null);
   if (saved?.uid) { S.user = saved; bootApp(); _handleInitialHash(); return; }
 });
 
-// Handle hash-based deep links on first load (e.g. shared #title/tt0111161)
 function _handleInitialHash() {
   const hash = location.hash.replace('#', '');
   if (!hash) { history.replaceState({ view: 'home' }, '', '#home'); return; }
