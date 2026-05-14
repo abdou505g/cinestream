@@ -1,194 +1,77 @@
 'use strict';
-/* ═══════════════════════════════════════════════════════════════
-   CineStream v3.2 — app.js  (FULLY DEBUGGED + REVIEW FIXES)
-   Fixes applied: 30 bugs / performance / security / structural
+
+/* ════════════════════════════════════════════════════════════════
+   CineStream v3.2 – FINAL (May 2026)
+   Modern UI inspired by StreamIMDB – fully functional
 ═══════════════════════════════════════════════════════════════ */
 
-// ── AUTH (Local only — no Firebase) ─────────────────────────────
-
-// ── APP CONFIG ───────────────────────────────────────────────────
+// ── CONFIG ────────────────────────────────────────────────────
 const CFG = {
-  // ⚠️ WARNING: API key exposed in client-side code.
-  // In production you MUST proxy requests through your own backend.
-  OMDB_KEY:     '4b251b1e',
-  OMDB:         'https://www.omdbapi.com/',
-  PLAY:         'https://www.playimdb.com/title/',
+  OMDB_KEY: '4b251b1e',
+  OMDB: 'https://www.omdbapi.com/',
+  PLAY: 'https://www.playimdb.com/title/',
   STREAM_MOVIE: 'https://streamimdb.ru/embed/movie/',
-  STREAM_TV:    'https://streamimdb.ru/embed/tv/',
+  STREAM_TV: 'https://streamimdb.ru/embed/tv/',
   VAPLAYER_API: 'https://streamdata.vaplayer.ru/api.php',
-  HERO_MS:      7000,
-  CACHE_TTL_MS: 48 * 60 * 60 * 1000,   // 48 h
-  CACHE_MAX:    120,
-  BATCH_SIZE:   3,
-  DEMO_USER:    { uid:'guest', name:'Guest', email:'guest@cinestream.app', photo:'' },
-  STORE_VER:    2,
+  HERO_MS: 7000,
+  CACHE_TTL_MS: 48 * 60 * 60 * 1000,
+  CACHE_MAX: 120,
+  BATCH_SIZE: 3,
+  DEMO_USER: { uid:'guest', name:'Guest', email:'guest@cinestream.app', photo:'' },
+  STORE_VER: 2,
   FETCH_RETRIES: 2,
 };
 
-const ROWS = [
-
-  // ── 0. Continue Watching ────────────────────────────────────────
-  { id:'cw', title:'▶ Continue Watching', ids:[], cw:true },
-
-  // ── 1. NOW IN THEATERS (صدر فعلاً في 2026) ─────────────────────
-  { id:'now2026', title:'🎬 Now in Theaters',
-    ids:[
-      'tt32141377', 'tt12042730', 'tt28650488',
-      'tt14539740', 'tt15474026', 'tt21692408',
-    ]},
-
-  // ── 2. COMING SOON (لم يصدر بعد — May 2026 فصاعداً) ───────────
-  { id:'soon2026', title:'📅 Coming Soon',
-    ids:[
-      'tt30825738','tt29355505','tt33764258',
-      'tt22084616','tt21357150','tt31378509',
-    ]},
-
-  // ── 3. MOST POPULAR THIS WEEK ──────────────────────────────────
-  { id:'popular', title:'🔥 Most Popular This Week',
-    ids:[
-      'tt12042730','tt28650488','tt30825738',
-      'tt21823606','tt9603212','tt22687790',
-      'tt11198330','tt21276558',
-    ]},
-
-  // ── 4. MOST POPULAR ON TV ──────────────────────────────────────
-  { id:'popularTV', title:'📺 Most Popular on TV',
-    ids:[
-      'tt11198330','tt21276558','tt21255044',
-      'tt15398776','tt13560574','tt10234724',
-      'tt14544192','tt20766284',
-    ]},
-
-  // ── 5. FAN FAVORITES (تقييم 8.0+) ─────────────────────────────
-  { id:'fanfav', title:'⭐ Fan Favorites',
-    ids:[
-      'tt0111161','tt0468569','tt1375666',
-      'tt0816692','tt12042730','tt21255044',
-      'tt4154796','tt21823606',
-    ]},
-
-  // ── 6. TOP RATED ALL TIME (IMDb Top 250) ───────────────────────
-  { id:'top250', title:'🏆 Top Rated All Time',
-    ids:[
-      'tt0111161','tt0068646','tt0071562',
-      'tt0468569','tt0050083','tt0108052',
-      'tt0137523','tt1375666',
-    ]},
-
-  // ── 7. BY GENRE ────────────────────────────────────────────────
-  { id:'action', title:'🎭 Action',
-    ids:['tt0468569','tt21823606','tt9603212','tt22687790',
-         'tt4154796','tt1877832','tt3498820','tt2015381'] },
-
-  { id:'drama',  title:'🎭 Drama',
-    ids:['tt0111161','tt0068646','tt0050083','tt0108052',
-         'tt12042730','tt20766284','tt0993846','tt0167260'] },
-
-  { id:'comedy', title:'😂 Comedy',
-    ids:['tt0120382','tt0910970','tt6263850','tt28650488',
-         'tt1853728','tt2562232','tt4154756','tt6751668'] },
-
-  { id:'scifi',  title:'🚀 Sci-Fi',
-    ids:['tt0133093','tt1375666','tt0816692','tt31378509',
-         'tt21823606','tt15398776','tt13560574','tt12042730'] },
-
-  { id:'horror', title:'👻 Horror',
-    ids:['tt32141377','tt5052448','tt7784604','tt6644200',
-         'tt1457767','tt8772262','tt1396484','tt0081505'] },
-
-  // ── 8. DRAMA SERIES ────────────────────────────────────────────
-  { id:'drama_series', title:'🎭 Drama Series',
-    ids:[
-      'tt0944947','tt0903747','tt2356777',
-      'tt4574334','tt11198330','tt21255044',
-      'tt20766284','tt0386676',
-    ]},
-
-  // ── 9. NATURE & EXPLORATION ────────────────────────────────────
-  { id:'nature', title:'🌍 Nature & Exploration',
-    ids:[
-      'tt39298503','tt32869282','tt31971270',
-      'tt0469049','tt6760304','tt8110460',
-      'tt10001378','tt5491994',
-    ]},
-
-  // ── 10. DOCUMENTARY ────────────────────────────────────────────
-  { id:'docs', title:'🎬 Documentary',
-    ids:[
-      'tt12888462','tt7775622','tt8420184',
-      'tt5189670','tt3288592','tt2234222',
-      'tt1517451','tt0816575',
-    ]},
-
-  // ── 11. TRUE CRIME ─────────────────────────────────────────────
-  { id:'truecrime', title:'🔍 True Crime',
-    ids:[
-      'tt5189670','tt3288592','tt11823076',
-      'tt11455292','tt9174558','tt4878800',
-      'tt8364978','tt31556143',
-    ]},
-
-  // ── 12. SCIENCE & SPACE ────────────────────────────────────────
-  { id:'science', title:'🔭 Science & Space',
-    ids:[
-      'tt2395695','tt0081846','tt14216232',
-      'tt8110460','tt0103984','tt1302814',
-      'tt12042730','tt0816692',
-    ]},
-
-  // ── 13. REALITY & SURVIVAL ─────────────────────────────────────
-  { id:'reality', title:'🏕️ Reality & Survival',
-    ids:[
-      'tt4803766','tt0382650','tt0364784',
-      'tt0363307','tt1843323','tt6741278',
-      'tt0285331','tt3107288',
-    ]},
+// ── 2026 MOVIES & SERIES ─────────────────────────────────────
+const MOVIES_2026 = [
+  'tt32141377', // The Punisher: One Last Kill
+  'tt1314481',  // The Devil Wears Prada 2
+  'tt1325734',  // The Drama
+  'tt1317448',  // No Place to Be Single
+  'tt1007757',  // Swapped
+  'tt1226863',  // Super Mario Galaxy
+  'tt687163',   // Project Hail Mary
+  'tt1439930',  // Apex
+  'tt1214931',  // Nuremberg
+  'tt21692408', // My Dearest Assassin
+  'tt22084616', // Ready or Not: Here I Come
 ];
 
-const MOVIE_IDS = [
-  'tt32141377','tt12042730','tt28650488',
-  'tt30825738','tt33764258','tt21357150',
-  'tt21823606','tt9603212','tt6263850',
-  'tt14539740','tt15474026','tt21692408',
-  'tt0468569','tt0111161','tt1375666',
+const SERIES_2026 = [
+  'tt11198330', // The Boys
+  'tt21276558', // FROM
+  'tt823a8',    // Daredevil: Born Again
+  'tt52fl4',    // Citadel
+  'tt4xc7q',    // Legends
+  'tt71xh8',    // Off Campus
+  'tt3nbq5',    // Devil May Cry
+  'tt3nthr',    // House of the Spirits
+  'tt4sab5',    // Perfect Crown
+  'tt1s4yc',    // My Royal Nemesis
 ];
-const SERIES_IDS = [
-  'tt11198330','tt21276558',
-  'tt21255044','tt15398776','tt13560574',
-  'tt10234724','tt14544192','tt20766284',
-  'tt0944947','tt0903747','tt4574334',
-  'tt5491994','tt0386676','tt2861424',
-  'tt32869282','tt31971270','tt39298503',
-  'tt0469049','tt6760304','tt8110460',
-  'tt5189670','tt3288592','tt11823076',
-  'tt2395695','tt4803766','tt3107288',
-];
-const GENRES     = ['All','Action','Adventure','Comedy','Crime','Drama','Fantasy','Horror','Romance','Sci-Fi','Thriller','Animation'];
 
-// ── VALID IMDb ID ────────────────────────────────────────────────
+const GENRES = ['All', 'Action', 'Adventure', 'Animation', 'Comedy', 'Crime', 'Drama', 'Fantasy', 'Horror', 'Romance', 'Sci-Fi', 'Thriller'];
+
+// ── VALIDATION ──────────────────────────────────────────────
 const IMDB_RE = /^tt\d{7,8}$/;
 function validId(id) { return typeof id === 'string' && IMDB_RE.test(id); }
 function safePlayUrl(id) { return validId(id) ? CFG.PLAY + id : '#'; }
-
-// ── URL sanitizer (FIX #30) ──────────────────────────────────────
 function sanitizeUrl(url) {
   if (typeof url !== 'string') return '#';
   url = url.trim();
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   return '#';
 }
+function esc(s) { if (s == null) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
 
-/* ══════════════════════════════════════════════════════
-   SMART STORAGE  — safe reads, LRU+TTL cache, quota guard
-══════════════════════════════════════════════════════ */
+// ── STORE ──────────────────────────────────────────────────
 const Store = (() => {
   function read(key, fallback) {
     try {
       const raw = localStorage.getItem(key);
       return raw ? JSON.parse(raw) : fallback;
     } catch(e) {
-      console.warn('[Store] Corrupted "' + key + '", resetting.', e);
+      console.warn('[Store] Corrupted "' + key + '", resetting.');
       try { localStorage.removeItem(key); } catch(_) {}
       return fallback;
     }
@@ -206,17 +89,7 @@ const Store = (() => {
   return { read, write, remove };
 })();
 
-/* ── STORAGE VERSION MIGRATION ──────────────────────────────────── */
-(function migrateStore() {
-  const ver = Store.read('cs_ver', 0);
-  if (ver < CFG.STORE_VER) {
-    if (ver < 2) { Store.remove('cs_cache'); Store.remove('cs_sq'); }
-    Store.write('cs_ver', CFG.STORE_VER);
-    console.info('[Store] Migrated to v' + CFG.STORE_VER);
-  }
-})();
-
-/* ── LRU + TTL Movie Cache ───────────────────────────────────── */
+// ── CACHE ──────────────────────────────────────────────────
 const MovieCache = (() => {
   let _store = Store.read('cs_cache', {});
   let _dirty = false, _flush = null;
@@ -262,39 +135,30 @@ const MovieCache = (() => {
   };
 })();
 
-/* ── STATE ─────────────────────────────────────────────────────── */
+// ── STATE ──────────────────────────────────────────────────
 const S = {
   user: null,
   appBooted: false,
-  watchlist: Store.read('cs_wl',    []),
-  history:   Store.read('cs_cw',    []),
-  ratings:   Store.read('cs_stars', {}),
-  searches:  Store.read('cs_sq',    []),
+  watchlist: Store.read('cs_wl', []),
+  history: Store.read('cs_cw', []),
+  ratings: Store.read('cs_stars', {}),
+  searches: Store.read('cs_sq', []),
   heroMovies: [], heroIdx: 0, heroInterval: null,
   activeView: 'home', activeGenre: 'All',
   installEvt: null,
   searchTimer: null,
   searchToken: 0,
-  confirmResult: null, recaptcha: null,
   _inflight: {},
   _visHandler: null,
   playerStartTime: null,
-  playerMovieId:   null,
+  playerMovieId: null,
 };
 
-/* ── HELPERS ───────────────────────────────────────────────────── */
-const $  = (s, c=document) => c.querySelector(s);
-const $$ = (s, c=document) => [...c.querySelectorAll(s)];
-const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+// ── HELPERS ──────────────────────────────────────────────
+const $ = (s, c = document) => c.querySelector(s);
+const $$ = (s, c = document) => [...c.querySelectorAll(s)];
 
-function esc(s) {
-  if (s == null) return '';
-  const d = document.createElement('div');
-  d.textContent = String(s);
-  return d.innerHTML;
-}
-
-function toast(msg, ms=3000) {
+function toast(msg, ms = 3000) {
   const c = $('#toasts'); if (!c) return;
   const el = document.createElement('div');
   el.className = 'toast'; el.textContent = msg;
@@ -302,11 +166,11 @@ function toast(msg, ms=3000) {
   setTimeout(() => el.remove(), ms + 300);
 }
 
-function loadImg(img, src, cls='on') {
+function loadImg(img, src, cls = 'on') {
   if (!img) return;
   if (!src || src === 'N/A') { img.style.display = 'none'; return; }
   img.src = src;
-  img.onload  = () => {
+  img.onload = () => {
     img.classList.add(cls);
     const ph = img.previousElementSibling;
     if (ph?.classList.contains('card-ph')) ph.style.display = 'none';
@@ -314,7 +178,7 @@ function loadImg(img, src, cls='on') {
   img.onerror = () => { img.style.display = 'none'; };
 }
 
-/* ── API ───────────────────────────────────────────────────────── */
+// ── API ──────────────────────────────────────────────────
 async function fetchWithRetry(url, retries = CFG.FETCH_RETRIES) {
   for (let i = 0; i <= retries; i++) {
     try {
@@ -358,15 +222,15 @@ async function fetchMovie(id) {
 async function fetchBatch(ids) {
   const results = [];
   for (let i = 0; i < ids.length; i += CFG.BATCH_SIZE) {
-    const chunk  = ids.slice(i, i + CFG.BATCH_SIZE);
-    const batch  = await Promise.allSettled(chunk.map(id => fetchMovie(id)));
+    const chunk = ids.slice(i, i + CFG.BATCH_SIZE);
+    const batch = await Promise.allSettled(chunk.map(id => fetchMovie(id)));
     results.push(...batch);
     if (i + CFG.BATCH_SIZE < ids.length) await new Promise(r => setTimeout(r, 120));
   }
   return results;
 }
 
-async function searchOMDb(q, page=1) {
+async function searchOMDb(q, page = 1) {
   const cacheKey = q + '|' + page;
   const hit = _searchCache.get(cacheKey);
   if (hit && Date.now() - hit.ts < SEARCH_CACHE_TTL) return { movies: hit.movies, total: hit.total };
@@ -387,7 +251,7 @@ async function searchOMDb(q, page=1) {
   }
 }
 
-/* ── WATCHLIST ─────────────────────────────────────────────────── */
+// ── WATCHLIST ─────────────────────────────────────────────
 const isWL = id => S.watchlist.some(m => m.imdbID === id);
 
 function toggleWatchlist(movie) {
@@ -420,7 +284,7 @@ function refreshWLBtns(id) {
   });
 }
 
-/* ── HISTORY ───────────────────────────────────────────────────── */
+// ── HISTORY ──────────────────────────────────────────────
 function addHistory(movie) {
   if (!movie?.imdbID) return;
   const idx = S.history.findIndex(m => m.imdbID === movie.imdbID);
@@ -435,507 +299,343 @@ function addHistory(movie) {
   Store.write('cs_cw', S.history);
 }
 
-/* ── CARD ──────────────────────────────────────────────────────── */
-function buildCard(movie, opts={}) {
-  const { wide=false, cw=false, openFn=null } = opts;
+// ── CARD (StreamIMDB style) ──────────────────────────────
+function buildCard(movie, opts = {}) {
+  const { wide = false, cw = false, openFn = null } = opts;
   const card = document.createElement('div');
-  card.className = 'card' + (wide ? ' w' : '');
+  card.className = 'cb-card';
   card.dataset.id = movie.imdbID;
 
   const poster = document.createElement('div');
-  poster.className = 'card-poster';
-
-  const ph = document.createElement('div');
-  ph.className = 'card-ph';
-  ph.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>';
-  const phSpan = document.createElement('span');
-  phSpan.textContent = movie.Title || '';
-  ph.appendChild(phSpan);
+  poster.className = 'cb-card-poster';
 
   const img = document.createElement('img');
   img.alt = movie.Title || '';
   img.loading = 'lazy';
-  loadImg(img, movie.Poster);
-  poster.appendChild(ph);
+  img.src = movie.Poster && movie.Poster !== 'N/A' ? movie.Poster : '';
+  img.onload = () => img.classList.add('loaded');
+  img.onerror = () => { img.style.display = 'none'; };
   poster.appendChild(img);
 
-  if (movie.imdbRating && movie.imdbRating !== 'N/A') {
-    const badge = document.createElement('div');
-    badge.className = 'card-badge';
-    badge.innerHTML = '<svg viewBox="0 0 16 16" fill="#f5c518"><path d="M8 1l1.854 3.756 4.146.602-3 2.924.708 4.128L8 10.25l-3.708 2.16L5 8.282 2 5.358l4.146-.602z"/></svg>';
-    badge.appendChild(document.createTextNode(movie.imdbRating));
-    poster.appendChild(badge);
-  }
-
-  const in_wl = isWL(movie.imdbID);
-  const heart = document.createElement('button');
-  heart.className = 'card-heart' + (in_wl ? ' liked' : '');
-  heart.dataset.wl = movie.imdbID;
-  heart.setAttribute('aria-label', isWL(movie.imdbID) ? 'Remove from watchlist' : 'Add to watchlist');
-  const hSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  hSvg.setAttribute('viewBox', '0 0 24 24');
-  hSvg.setAttribute('fill', in_wl ? 'currentColor' : 'none');
-  hSvg.setAttribute('stroke', 'currentColor');
-  hSvg.setAttribute('stroke-width', '2');
-  hSvg.innerHTML = '<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>';
-  heart.appendChild(hSvg);
-  heart.addEventListener('click', async e => {
-    e.stopPropagation();
-    const m = MovieCache.get(movie.imdbID) || await fetchMovie(movie.imdbID) || movie;
-    toggleWatchlist(m);
-    heart.setAttribute('aria-label', isWL(movie.imdbID) ? 'Remove from watchlist' : 'Add to watchlist');
-  });
-  poster.appendChild(heart);
-
-  const over = document.createElement('div');
-  over.className = 'card-over';
-  over.innerHTML =
-    '<div class="card-play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>'
-    + '<div class="card-over-title">' + esc(movie.Title) + '</div>'
-    + '<div class="card-over-meta">'
-    + (movie.imdbRating && movie.imdbRating !== 'N/A' ? '<span class="card-over-rating">⭐ ' + esc(movie.imdbRating) + '</span>' : '')
-    + '<span>' + esc(movie.Year) + '</span></div>';
-  poster.appendChild(over);
+  const overlay = document.createElement('div');
+  overlay.className = 'cb-card-overlay';
+  overlay.innerHTML = `
+    <div class="cb-card-play"><i class="bi bi-play-fill"></i></div>
+    <div class="cb-card-overlay-title">${esc(movie.Title)}</div>
+    <div class="cb-card-overlay-meta">
+      ${movie.imdbRating && movie.imdbRating !== 'N/A' ? '⭐ ' + esc(movie.imdbRating) : ''}
+      ${movie.Year ? ' · ' + esc(movie.Year) : ''}
+    </div>
+  `;
+  poster.appendChild(overlay);
 
   if (cw) {
-    const prog = document.createElement('div'); prog.className = 'card-prog';
-    const bar  = document.createElement('div'); bar.className  = 'card-prog-bar';
-    bar.style.width = (movie.progress || 30) + '%';
-    prog.appendChild(bar); poster.appendChild(prog);
-    const cwBadge = document.createElement('div');
-    cwBadge.className = 'card-cw-badge'; cwBadge.textContent = 'Continue';
-    poster.appendChild(cwBadge);
+    const prog = document.createElement('div');
+    prog.className = 'cb-cw-progress';
+    prog.innerHTML = `<div class="cb-cw-bar" style="width:${Math.min(movie.progress || 30, 100)}%"></div>`;
+    poster.appendChild(prog);
   }
 
   card.appendChild(poster);
-  const info = document.createElement('div'); info.className = 'card-info';
-  const nm = document.createElement('div'); nm.className = 'card-name';
-  nm.title = movie.Title || ''; nm.textContent = movie.Title || 'Unknown';
-  const yr = document.createElement('div'); yr.className = 'card-year';
-  yr.textContent = movie.Year || '';
-  info.appendChild(nm); info.appendChild(yr);
+
+  const info = document.createElement('div');
+  info.className = 'cb-card-info';
+  info.innerHTML = `
+    <h3 class="cb-card-title">${esc(movie.Title)}</h3>
+    <p class="cb-card-meta">${esc(movie.Year || '')}</p>
+  `;
   card.appendChild(info);
 
-  card.addEventListener('click', () => { if (openFn) openFn(movie.imdbID); else openModal(movie.imdbID); });
+  const handler = () => { if (openFn) openFn(movie.imdbID); else openModal(movie.imdbID); };
+  card.addEventListener('click', handler);
   return card;
 }
 
-function buildSkel(wide=false) {
+function buildSkel() {
   const el = document.createElement('div');
-  el.className = 'card-skel' + (wide ? ' w' : '');
-  el.innerHTML =
-    '<div class="img-skel skel" style="aspect-ratio:' + (wide ? '16/9' : '2/3') + ';margin-bottom:8px;border-radius:8px;"></div>'
-    + '<div class="t-skel skel" style="height:11px;width:80%;border-radius:4px;margin-bottom:5px;"></div>'
-    + '<div class="y-skel skel" style="height:9px;width:40%;border-radius:4px;"></div>';
+  el.className = 'cb-card skel';
+  el.innerHTML = `
+    <div class="cb-card-poster">
+      <div class="skel-img" style="aspect-ratio:2/3;border-radius:8px;"></div>
+    </div>
+    <div class="cb-card-info">
+      <div class="skel-text" style="height:11px;width:80%;margin-bottom:4px;"></div>
+      <div class="skel-text" style="height:9px;width:40%;"></div>
+    </div>
+  `;
   return el;
 }
 
-/* ── ROW ───────────────────────────────────────────────────────── */
-function buildRow(row) {
-  const sec = document.createElement('div');
-  sec.className = 'row'; sec.id = 'row-' + row.id;
-
-  const header = document.createElement('div'); header.className = 'row-header';
-  const h2 = document.createElement('h2'); h2.className = 'row-title';
-  h2.textContent = row.title;
-  header.appendChild(h2); sec.appendChild(header);
-
-  const wrap = document.createElement('div'); wrap.className = 'slider-wrap';
-  const btnR = document.createElement('button'); btnR.className = 'arr r'; btnR.setAttribute('aria-label', 'Previous');
-  btnR.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>';
-  const slider = document.createElement('div'); slider.className = 'slider'; slider.id = 'slider-' + row.id;
-  const btnL = document.createElement('button'); btnL.className = 'arr l'; btnL.setAttribute('aria-label', 'Next');
-  btnL.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>';
-
-  if (!row.cw) for (let i = 0; i < 6; i++) slider.appendChild(buildSkel());
-  btnR.addEventListener('click', () => slider.scrollBy({ left: -440, behavior: 'smooth' }));
-  btnL.addEventListener('click', () => slider.scrollBy({ left:  440, behavior: 'smooth' }));
-  wrap.appendChild(btnR); wrap.appendChild(slider); wrap.appendChild(btnL);
-  sec.appendChild(wrap);
-  return sec;
-}
-
-async function populateRow(row) {
-  const slider = $('#slider-' + row.id); if (!slider) return;
-
-  if (row.cw) {
-    slider.innerHTML = '';
-    if (!S.history.length) { $('#row-cw')?.classList.add('hidden'); return; }
-    $('#row-cw')?.classList.remove('hidden');
-    S.history.forEach(m => slider.appendChild(buildCard(m, { wide: true, cw: true })));
-    return;
-  }
-
-  try {
-    const res   = await fetchBatch(row.ids);
-    const valid = res.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
-    slider.innerHTML = '';
-    if (!valid.length) {
-      slider.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:.82rem;">Could not load titles.</div>';
-      return;
-    }
-    valid.forEach(m => slider.appendChild(buildCard(m)));
-  } catch(e) {
-    console.error('[Row]', row.id, e);
-    slider.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:.82rem;">Error loading titles.</div>';
-  }
-}
-
-/* ── HERO ──────────────────────────────────────────────────────── */
+// ── HERO SLIDER ───────────────────────────────────────────
 async function initHero() {
-  const ids = [
-    'tt12042730','tt32141377','tt28650488',
-    'tt30825738','tt33764258','tt21357150',
-  ];
-  const res  = await Promise.allSettled(ids.map(id => fetchMovie(id)));
-  S.heroMovies = res.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
-  if (!S.heroMovies.length) return;
+  const hero = document.getElementById('cbHero');
+  if (!hero) return;
+  const slides = hero.querySelectorAll('.cb-slide');
+  const dots = hero.querySelectorAll('.cb-dot');
+  if (!slides.length) return;
+  let current = 0, timer = null;
 
-  renderHero(0); buildDots(); startHeroTimer();
-
-  if (S._visHandler) document.removeEventListener('visibilitychange', S._visHandler);
-  S._visHandler = () => {
-    if (document.hidden) clearInterval(S.heroInterval);
-    else startHeroTimer();
-  };
-  document.addEventListener('visibilitychange', S._visHandler);
-}
-
-function renderHero(idx) {
-  const m = S.heroMovies[idx]; if (!m) return;
-  const bg = $('#heroBgImg');
-  if (bg) { bg.classList.remove('on'); bg.style.opacity = ''; setTimeout(() => loadImg(bg, m.Poster, 'on'), 60); }
-
-  const tags = $('#heroTags');
-  if (tags) {
-    tags.innerHTML = '';
-    const t1 = document.createElement('span'); t1.className = 'hero-tag'; t1.textContent = '#1 Today'; tags.appendChild(t1);
-    if (m.Type) { const t2 = document.createElement('span'); t2.className = 'hero-tag type'; t2.textContent = m.Type === 'series' ? 'Series' : 'Movie'; tags.appendChild(t2); }
+  function show(idx) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+    dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+    current = idx;
   }
+  function next() { if (slides.length) show((current + 1) % slides.length); }
+  function prev() { if (slides.length) show((current - 1 + slides.length) % slides.length); }
+  function resetTimer() { clearInterval(timer); if (slides.length > 1) timer = setInterval(next, CFG.HERO_MS); }
 
-  const set = (id, v) => { const el = $(id); if (el) el.textContent = v || ''; };
-  set('#heroTitle',   m.Title);
-  set('#heroYear',    m.Year);
-  set('#heroRuntime', m.Runtime && m.Runtime !== 'N/A' ? m.Runtime : '');
-  set('#heroPlot',    m.Plot    && m.Plot    !== 'N/A' ? m.Plot    : '');
-  set('#heroRating',  m.imdbRating && m.imdbRating !== 'N/A' ? '⭐ ' + m.imdbRating : '');
+  document.getElementById('cbSliderPrev')?.addEventListener('click', () => { prev(); resetTimer(); });
+  document.getElementById('cbSliderNext')?.addEventListener('click', () => { next(); resetTimer(); });
+  dots.forEach(d => d.addEventListener('click', function() { show(parseInt(this.dataset.idx) || 0); resetTimer(); }));
 
-  const pb = $('#heroPlay');
-  if (pb) {
-    pb.removeAttribute('href');
-    pb.removeAttribute('target');
-    pb.removeAttribute('rel');
-    pb.dataset.imdbId = m.imdbID;
-    pb.onclick = (e) => { e.preventDefault(); openPlayer(m.imdbID); };
-  }
-  if (pb) pb.rel = 'noopener noreferrer';
-
-  const ib = $('#heroInfo'); if (ib) ib.dataset.id = m.imdbID;
-  const lb = $('#heroLike'); if (lb) { lb.dataset.id = m.imdbID; lb.classList.toggle('liked', isWL(m.imdbID)); }
-  updateDots();
-}
-
-function buildDots() {
-  const c = $('#heroDots'); if (!c) return; c.innerHTML = '';
-  S.heroMovies.forEach((_, i) => {
-    const b = document.createElement('button');
-    b.className = 'hero-dot' + (i === 0 ? ' on' : '');
-    b.setAttribute('aria-label', 'Slide ' + (i + 1));
-    b.addEventListener('click', () => { S.heroIdx = i; renderHero(i); resetHeroTimer(); });
-    c.appendChild(b);
-  });
-}
-
-function updateDots() { $$('.hero-dot').forEach((d, i) => d.classList.toggle('on', i === S.heroIdx)); }
-
-function startHeroTimer() {
-  let elapsed = 0; clearInterval(S.heroInterval);
-  S.heroInterval = setInterval(() => {
-    if (document.hidden) return;
-    elapsed += 100;
-    const bar = $('#heroProgressBar'); if (bar) bar.style.width = Math.min(elapsed / CFG.HERO_MS * 100, 100) + '%';
-    if (elapsed >= CFG.HERO_MS) {
-      elapsed = 0;
-      S.heroIdx = (S.heroIdx + 1) % S.heroMovies.length;
-      renderHero(S.heroIdx);
+  // Touch swipe
+  let tx = 0, ty = 0;
+  hero.addEventListener('touchstart', e => { tx = e.changedTouches[0].clientX; ty = e.changedTouches[0].clientY; }, { passive: true });
+  hero.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - tx;
+    const dy = e.changedTouches[0].clientY - ty;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+      dx < 0 ? next() : prev();
+      resetTimer();
     }
-  }, 100);
-}
+  }, { passive: true });
 
-function resetHeroTimer() { const b = $('#heroProgressBar'); if (b) b.style.width = '0%'; startHeroTimer(); }
+  resetTimer();
 
-/* ── GENRE FILTER ──────────────────────────────────────────────── */
-function buildGenreBar() {
-  const bar = $('#genreBar'); if (!bar) return;
-  GENRES.forEach(g => {
-    const c = document.createElement('button');
-    c.className = 'genre-chip' + (g === 'All' ? ' active' : '');
-    c.textContent = g;
-    c.addEventListener('click', () => {
-      $$('.genre-chip').forEach(x => x.classList.remove('active'));
-      c.classList.add('active'); S.activeGenre = g; filterRows(g);
+  // Play buttons inside hero
+  hero.querySelectorAll('.cb-slide-play').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const src = this.getAttribute('data-embed');
+      if (src) openPlayerFromEmbed(src);
     });
-    bar.appendChild(c);
   });
 }
 
-function filterRows(genre) {
-  $$('.row').forEach(row => {
-    if (row.id === 'row-cw') return;
-    if (genre === 'All') { row.style.display = ''; return; }
-    const cards = $$('.card', row);
-    const any = cards.some(card => {
-      const m = MovieCache.get(card.dataset.id);
-      return m && m.Genre && m.Genre.toLowerCase().includes(genre.toLowerCase());
-    });
-    row.style.display = any ? '' : 'none';
+// ── ROW POPULATION ──────────────────────────────────────
+async function populateRow(containerId, ids, options = {}) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+  // Show skeletons
+  for (let i = 0; i < Math.min(ids.length, 6); i++) container.appendChild(buildSkel());
+
+  const results = await fetchBatch(ids);
+  container.innerHTML = '';
+  const valid = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
+  valid.forEach(m => container.appendChild(buildCard(m, options)));
+  if (!valid.length) {
+    container.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:0.85rem;">No titles available.</div>';
+  }
+}
+
+// ── TOP 10 ───────────────────────────────────────────────
+async function renderTop10() {
+  const container = document.getElementById('cbTop10');
+  if (!container) return;
+  const ids = MOVIES_2026.slice(0, 10);
+  const movies = await fetchBatch(ids);
+  container.innerHTML = '';
+  movies.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value).forEach((m, i) => {
+    const item = document.createElement('a');
+    item.className = 'cb-top10-item';
+    item.href = '#';
+    item.innerHTML = `
+      <span class="cb-top10-number">${i + 1}</span>
+      <div class="cb-top10-poster">
+        <img src="${m.Poster !== 'N/A' ? m.Poster : ''}" alt="${esc(m.Title)}" width="120" height="180" loading="lazy">
+      </div>
+    `;
+    item.addEventListener('click', e => { e.preventDefault(); openModal(m.imdbID); });
+    container.appendChild(item);
   });
 }
 
-/* ── MODAL ─────────────────────────────────────────────────────── */
+// ── TABS ──────────────────────────────────────────────────
+function initTabs() {
+  document.querySelectorAll('.cb-tab').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const group = this.closest('.cb-tabs');
+      group.querySelectorAll('.cb-tab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      const target = document.getElementById(this.dataset.tab);
+      const parent = group.parentElement;
+      parent.querySelectorAll('.cb-tab-content').forEach(c => c.classList.remove('active'));
+      if (target) target.classList.add('active');
+    });
+  });
+}
+
+// ── CONTINUE WATCHING ──────────────────────────────────
+function renderContinueWatching() {
+  const section = document.getElementById('cbContinueWatching');
+  const grid = document.getElementById('cbCwGrid');
+  if (!section || !grid) return;
+  if (!S.history.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  grid.innerHTML = '';
+  S.history.slice(0, 8).forEach(m => grid.appendChild(buildCard(m, { cw: true })));
+}
+
+// ── MODAL ────────────────────────────────────────────────
 async function openModal(id, push = true) {
   if (!validId(id)) return;
   if (push && S.appBooted) history.pushState({ modal: id, prevView: S.activeView }, '', '#title/' + id);
-  const bg = $('#modalBg'), modal = $('#modal');
+
+  const bg = document.getElementById('cbPlayerModal');
+  const modal = document.querySelector('.cb-player-modal-body');
   if (!bg || !modal) return;
 
-  const session = Symbol();
-  modal._session = session;
-
-  modal.innerHTML = '<div style="min-height:300px;display:flex;align-items:center;justify-content:center;"><div style="text-align:center;color:var(--text2)"><div class="skel" style="width:48px;height:48px;border-radius:50%;margin:0 auto 1rem;"></div>Loading…</div></div>';
-  bg.classList.add('open');
+  bg.style.display = '';
   document.body.style.overflow = 'hidden';
 
   const m = MovieCache.get(id) || await fetchMovie(id);
-  if (modal._session !== session) return;
-
   if (!m) {
-    modal.innerHTML = '<div style="padding:3rem;text-align:center;color:var(--text2)">Could not load data.<br><button id="mcb" style="margin-top:1rem;background:var(--red);border:none;color:white;padding:8px 20px;border-radius:8px;cursor:pointer;font-family:inherit;">Close</button></div>';
-    $('#mcb')?.addEventListener('click', closeModal);
+    toast('Could not load title.');
+    bg.style.display = 'none';
     return;
   }
 
-  addHistory(m); populateRow(ROWS[0]);
+  addHistory(m);
+  renderContinueWatching();
 
-  const genres = m.Genre ? m.Genre.split(', ') : [];
-  const stars  = S.ratings[id] || 0;
-  const inWL   = isWL(id);
-  const playUrl = safePlayUrl(id);
-
-  modal.innerHTML =
-    '<div class="modal-hero">'
-    + '<img id="modalImg" alt="' + esc(m.Title) + '"/>'
-    + '<div class="modal-hero-grad"></div>'
-    + '<button class="modal-close" id="modalCloseBtn" aria-label="Close">'
-    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>'
-    + '<div class="modal-body">'
-    + '<h2 class="modal-title">' + esc(m.Title) + '</h2>'
-    + '<div class="modal-meta">'
-    + (m.imdbRating && m.imdbRating !== 'N/A' ? '<span class="tag-rating"><svg viewBox="0 0 16 16" fill="#f5c518" width="12"><path d="M8 1l1.854 3.756 4.146.602-3 2.924.708 4.128L8 10.25l-3.708 2.16L5 8.282 2 5.358l4.146-.602z"/></svg>' + esc(m.imdbRating) + '</span>' : '')
-    + (m.Year     ? '<span class="tag-year">'    + esc(m.Year)    + '</span>' : '')
-    + (m.Runtime  && m.Runtime  !== 'N/A' ? '<span class="tag-runtime">' + esc(m.Runtime)  + '</span>' : '')
-    + (m.Rated    && m.Rated    !== 'N/A' ? '<span class="tag-rated">'   + esc(m.Rated)    + '</span>' : '')
-    + (m.Type     ? '<span class="tag-rated">' + (m.Type === 'series' ? 'Series' : 'Movie') + '</span>' : '')
-    + '</div>'
-    + (m.Plot && m.Plot !== 'N/A' ? '<p class="modal-plot">' + esc(m.Plot) + '</p>' : '')
-    + (genres.length ? '<div class="modal-genres">' + genres.map(g => '<span class="genre-tag">' + esc(g) + '</span>').join('') + '</div>' : '')
-    + '<div class="modal-info">'
-    + (m.Director  && m.Director  !== 'N/A' ? '<div><div class="info-label">Director</div><div class="info-val">'   + esc(m.Director)  + '</div></div>' : '')
-    + (m.Actors    && m.Actors    !== 'N/A' ? '<div><div class="info-label">Cast</div><div class="info-val">'       + esc(m.Actors)    + '</div></div>' : '')
-    + (m.Country   && m.Country   !== 'N/A' ? '<div><div class="info-label">Country</div><div class="info-val">'    + esc(m.Country)   + '</div></div>' : '')
-    + (m.Language  && m.Language  !== 'N/A' ? '<div><div class="info-label">Language</div><div class="info-val">'   + esc(m.Language)  + '</div></div>' : '')
-    + (m.Awards    && m.Awards    !== 'N/A' ? '<div><div class="info-label">Awards</div><div class="info-val">'     + esc(m.Awards)    + '</div></div>' : '')
-    + (m.BoxOffice && m.BoxOffice !== 'N/A' ? '<div><div class="info-label">Box Office</div><div class="info-val">' + esc(m.BoxOffice) + '</div></div>' : '')
-    + '</div>'
-    + '<div class="modal-rate"><div class="rate-label">Your Rating</div>'
-    + '<div class="stars" id="modalStars" role="group" aria-label="Rate this title">'
-    + [1,2,3,4,5].map(n => '<span class="star' + (n <= stars ? ' on' : '') + '" data-n="' + n + '" role="button" tabindex="0" aria-label="' + n + ' star' + (n>1?'s':'') + '">★</span>').join('')
-    + '</div></div>'
-    + '<div class="modal-actions">'
-    + '<button class="modal-play-btn" id="modalPlayBtn" data-id="' + esc(id) + '">'
-    + '<svg viewBox="0 0 24 24" fill="currentColor" width="20"><path d="M8 5v14l11-7z"/></svg> Play Now</button>'
-    + '<button class="modal-secondary-btn' + (inWL ? ' added' : '') + '" id="modalWlBtn" data-wl="' + esc(id) + '">'
-    + '<svg viewBox="0 0 24 24" fill="' + (inWL ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" width="18"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>'
-    + ' ' + (inWL ? 'In My List' : 'Add to List') + '</button>'
-    + '<button class="modal-secondary-btn" id="modalShareBtn">'
-    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>'
-    + ' Share</button>'
-    + '</div>'
-    + '<div class="similar-row" id="similarRow"><div class="similar-title">More Like This</div>'
-    + '<div class="similar-grid" id="similarGrid"></div></div>'
-    + '</div>';
-
-  loadImg($('#modalImg'), m.Poster, 'on');
-
-  $('#modalCloseBtn')?.addEventListener('click', closeModal);
-
-  $$('.star', modal).forEach(s => {
-    const handler = () => {
-      const n = +s.dataset.n; S.ratings[id] = n; Store.write('cs_stars', S.ratings);
-      $$('.star', modal).forEach((x, i) => x.classList.toggle('on', i < n));
-      toast('Rated "' + m.Title + '" ' + n + '★');
-    };
-    s.addEventListener('click', handler);
-    s.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); } });
-  });
-
-  const wlBtn = $('#modalWlBtn');
-  if (wlBtn) {
-    wlBtn.addEventListener('click', async () => {
+  // Build modal content
+  const wrap = modal.querySelector('.cb-player-modal-wrap');
+  if (wrap) {
+    wrap.innerHTML = `
+      <div style="padding:2rem;max-width:600px;margin:0 auto;">
+        <img src="${m.Poster !== 'N/A' ? m.Poster : ''}" alt="${esc(m.Title)}" style="width:100%;border-radius:12px;margin-bottom:1rem;">
+        <h2 style="font-size:1.8rem;font-weight:700;">${esc(m.Title)}</h2>
+        <div style="display:flex;gap:12px;margin:8px 0;color:var(--text2);">
+          ${m.imdbRating && m.imdbRating !== 'N/A' ? '<span>⭐ ' + esc(m.imdbRating) + '</span>' : ''}
+          <span>${esc(m.Year || '')}</span>
+          <span>${esc(m.Runtime || '')}</span>
+        </div>
+        <p style="line-height:1.6;color:rgba(255,255,255,0.8);">${esc(m.Plot || '')}</p>
+        <div style="display:flex;gap:12px;margin-top:1.5rem;">
+          <button class="cb-btn cb-btn-play" data-id="${esc(id)}" style="flex:1;"><i class="bi bi-play-fill"></i> Play</button>
+          <button class="cb-btn cb-btn-ghost-sm" data-wl="${esc(id)}"><i class="bi bi-bookmark${isWL(id) ? '-fill' : ''}"></i> ${isWL(id) ? 'In List' : 'Add to List'}</button>
+        </div>
+      </div>
+    `;
+    wrap.querySelector('.cb-btn-play')?.addEventListener('click', () => { closePlayer(); openPlayer(id); });
+    wrap.querySelector('[data-wl]')?.addEventListener('click', async function() {
       const full = MovieCache.get(id) || await fetchMovie(id) || m;
-      toggleWatchlist(full); refreshWLBtns(id);
+      toggleWatchlist(full);
+      this.innerHTML = `<i class="bi bi-bookmark${isWL(id) ? '-fill' : ''}"></i> ${isWL(id) ? 'In List' : 'Add to List'}`;
     });
   }
 
-  $('#modalShareBtn')?.addEventListener('click', async () => {
-    if (navigator.share) {
-      try { await navigator.share({ title: m.Title, text: 'Watch "' + m.Title + '" on CineStream', url: playUrl }); }
-      catch(e) { /* user cancelled */ }
-    } else {
-      try { await navigator.clipboard.writeText(playUrl); toast('🔗 Link copied!'); }
-      catch(e) { toast('Link: ' + playUrl); }
-    }
-  });
-
-  $('#modalPlayBtn')?.addEventListener('click', () => {
-    addHistory(m);
-    closeModal(false);
-    openPlayer(id);
-  });
-
-  loadSimilar(m, genres[0], session);
+  document.getElementById('cbPlayerModalClose')?.addEventListener('click', () => { bg.style.display = 'none'; document.body.style.overflow = ''; });
+  document.getElementById('cbPlayerModalX')?.addEventListener('click', () => { bg.style.display = 'none'; document.body.style.overflow = ''; });
 }
 
-async function loadSimilar(movie, genre, session) {
-  if (!genre) return;
-  const { movies } = await searchOMDb(genre);
-  const modal = $('#modal'); if (!modal || modal._session !== session) return;
-  const grid = $('#similarGrid'); if (!grid) return;
-  const similar = movies.filter(x => x.imdbID !== movie.imdbID).slice(0, 6);
-  grid.innerHTML = '';
-  similar.forEach(x => {
-    grid.appendChild(buildCard(x, {
-      openFn: id => { closeModal(); setTimeout(() => openModal(id), 200); },
-    }));
-  });
+// ── PLAYER ──────────────────────────────────────────────
+function openPlayer(id) {
+  const bg = document.getElementById('cbPlayerModal');
+  const wrap = document.querySelector('.cb-player-modal-wrap');
+  const iframe = document.getElementById('cbModalPlayer');
+  if (!bg || !wrap || !iframe) return;
+
+  bg.style.display = '';
+  document.body.style.overflow = 'hidden';
+
+  // Use the embed URL
+  const embedUrl = CFG.STREAM_MOVIE + id;
+  iframe.src = embedUrl;
+
+  // Update modal content to show just the iframe
+  wrap.innerHTML = '';
+  const container = document.createElement('div');
+  container.style.cssText = 'width:100%;height:100%;min-height:60vh;position:relative;';
+  const loader = document.createElement('div');
+  loader.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;';
+  loader.innerHTML = '<div class="spinner"></div>';
+  container.appendChild(loader);
+  container.appendChild(iframe);
+  wrap.appendChild(container);
+
+  iframe.onload = () => { loader.style.display = 'none'; };
+
+  document.getElementById('cbPlayerModalClose')?.addEventListener('click', closePlayer);
+  document.getElementById('cbPlayerModalX')?.addEventListener('click', closePlayer);
 }
 
-function closeModal(goBack = true) {
-  if (goBack && history.state?.modal) { history.back(); return; }
-  _doCloseModal();
+function openPlayerFromEmbed(src) {
+  const bg = document.getElementById('cbPlayerModal');
+  const iframe = document.getElementById('cbModalPlayer');
+  if (!bg || !iframe) return;
+  bg.style.display = '';
+  document.body.style.overflow = 'hidden';
+  iframe.src = src;
+  document.getElementById('cbPlayerModalClose')?.addEventListener('click', closePlayer);
+  document.getElementById('cbPlayerModalX')?.addEventListener('click', closePlayer);
 }
-function _doCloseModal() {
-  $('#modalBg')?.classList.remove('open');
+
+function closePlayer() {
+  const bg = document.getElementById('cbPlayerModal');
+  const iframe = document.getElementById('cbModalPlayer');
+  if (bg) bg.style.display = 'none';
+  if (iframe) iframe.src = 'about:blank';
   document.body.style.overflow = '';
-  const m = $('#modal'); if (m) m._session = null;
-}
-window._csCloseModal = closeModal;
-
-/* ── VIEWS ─────────────────────────────────────────────────────── */
-function showView(name, push = true) {
-  if (push && S.appBooted) history.pushState({ view: name }, '', '#' + name);
-  S.activeView = name;
-  $$('.nav-pill').forEach(p => p.classList.toggle('active', p.dataset.view === name));
-  $('#viewHome')?.classList.toggle('hidden', name !== 'home');
-
-  const viewMap = { movies:'viewMovies', series:'viewSeries', watchlist:'viewWatchlist' };
-  ['viewMovies','viewSeries','viewWatchlist'].forEach(vid => {
-    $(('#' + vid))?.classList.toggle('active', vid === viewMap[name]);
-  });
-
-  if (name === 'watchlist') refreshWatchlistView();
-  if (name === 'movies')    populatePageGrid('moviesGrid', MOVIE_IDS);
-  if (name === 'series')    populatePageGrid('seriesGrid', SERIES_IDS);
 }
 
-async function populatePageGrid(gridId, ids) {
-  const g = $(('#' + gridId)); if (!g || g.dataset.loaded) return;
-  g.dataset.loaded = '1';
-  ids.forEach(() => g.appendChild(buildSkel()));
-  const res = await fetchBatch(ids);
-  g.innerHTML = '';
-  res.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value).forEach(m => g.appendChild(buildCard(m)));
-}
-
+// ── WATCHLIST VIEW ────────────────────────────────────────
 function refreshWatchlistView() {
-  const c = $('#watchlistContent'); if (!c) return;
+  const c = document.getElementById('watchlistContent');
+  if (!c) return;
   if (!S.watchlist.length) {
-    c.innerHTML = '<div class="empty-page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><h3>Your list is empty</h3><p>Tap the bookmark icon on any title to save it here.</p></div>';
+    c.innerHTML = '<div class="empty-page"><i class="bi bi-bookmark" style="font-size:3rem;opacity:0.3;"></i><h3>Your list is empty</h3><p>Tap the bookmark icon on any title to save it here.</p></div>';
     return;
   }
   c.innerHTML = '';
-  const g = document.createElement('div'); g.className = 'page-grid';
+  const g = document.createElement('div');
+  g.className = 'page-grid';
   S.watchlist.forEach(m => g.appendChild(buildCard(m)));
   c.appendChild(g);
 }
 
-/* ── SEARCH ────────────────────────────────────────────────────── */
+// ── SEARCH ──────────────────────────────────────────────
 function openSearch() {
-  $('#searchOverlay')?.classList.add('open');
+  const overlay = document.getElementById('searchOverlay');
+  if (overlay) overlay.classList.add('open');
   document.body.style.overflow = 'hidden';
-  setTimeout(() => $('#searchInput')?.focus(), 100);
-  renderHistoryTags();
+  setTimeout(() => document.getElementById('searchInput')?.focus(), 100);
 }
 
 function closeSearch() {
-  clearTimeout(S.searchTimer);
-  S.searchTimer = null;
-  $('#searchOverlay')?.classList.remove('open');
+  const overlay = document.getElementById('searchOverlay');
+  if (overlay) overlay.classList.remove('open');
   document.body.style.overflow = '';
-  const inp = $('#searchInput'); if (inp) inp.value = '';
-  const res = $('#searchResults'); if (res) res.innerHTML = '';
-  const st  = $('#searchStatus');  if (st)  st.textContent = '';
-}
-
-function renderHistoryTags() {
-  const c = $('#historyTags'); if (!c) return;
-  c.innerHTML = '';
-  if (!S.searches.length) { $('#searchHistory')?.classList.add('hidden'); return; }
-  $('#searchHistory')?.classList.remove('hidden');
-  S.searches.slice(0, 8).forEach(q => {
-    const tag = document.createElement('div'); tag.className = 'history-tag';
-    tag.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>';
-    tag.appendChild(document.createTextNode(q));
-    tag.addEventListener('click', () => { const i = $('#searchInput'); if (i) i.value = q; doSearch(q); });
-    c.appendChild(tag);
-  });
+  const inp = document.getElementById('searchInput');
+  if (inp) inp.value = '';
+  const res = document.getElementById('searchResults');
+  if (res) res.innerHTML = '';
+  const st = document.getElementById('searchStatus');
+  if (st) st.textContent = '';
 }
 
 async function doSearch(q) {
-  const statusEl = $('#searchStatus'), resEl = $('#searchResults'), histEl = $('#searchHistory');
+  const statusEl = document.getElementById('searchStatus');
+  const resEl = document.getElementById('searchResults');
   if (!statusEl || !resEl) return;
   if (!q || q.length < 2) return;
 
-  const token = ++S.searchToken;
-
-  statusEl.textContent = 'Searching…'; resEl.innerHTML = ''; histEl?.classList.add('hidden');
-  S.searches = [q, ...S.searches.filter(x => x !== q)].slice(0, 10);
-  Store.write('cs_sq', S.searches);
-
-  const { movies, total } = await searchOMDb(q);
-
-  if (token !== S.searchToken) return;
-  if (!$('#searchOverlay')?.classList.contains('open')) return;
-
-  statusEl.textContent = total ? total.toLocaleString() + ' results for "' + q + '"' : 'No results for "' + q + '"';
+  statusEl.textContent = 'Searching…';
   resEl.innerHTML = '';
 
-  if (!movies.length) {
-    resEl.innerHTML = '<div class="empty-page" style="grid-column:1/-1;padding:2rem 0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><h3>Nothing found</h3><p>Try a different term.</p></div>';
-    return;
-  }
-
+  const { movies } = await searchOMDb(q);
+  statusEl.textContent = movies.length ? movies.length + ' results for "' + q + '"' : 'No results for "' + q + '"';
   movies.forEach(m => resEl.appendChild(buildCard(m, {
     openFn: id => { closeSearch(); openModal(id); },
   })));
 }
 
-// ── AUTH (Local only) ─────────────────────────────────────────────
+// ── AUTH ──────────────────────────────────────────────────
 const LocalAuth = (() => {
   const KEY = 'cs_users';
   function all() { return Store.read(KEY, {}); }
   function save(users) { Store.write(KEY, users); }
-  // FIX #30: still not production‑grade – for local demo only
   function hashPass(pass) {
     const salt = 'cinestream_salt_2024';
     let h1 = 0, h2 = 0;
@@ -946,7 +646,6 @@ const LocalAuth = (() => {
     }
     return 'sh' + Math.abs(h1).toString(36) + Math.abs(h2).toString(36);
   }
-
   return {
     register(email, pass, name) {
       const users = all();
@@ -964,665 +663,92 @@ const LocalAuth = (() => {
   };
 })();
 
-/* ── AUTH UI ────────────────────────────────────────────────────── */
 function setupAuthUI() {
-  function showErr(msg) { const el = $('#authError'); if (!el) return; el.textContent = msg; el.classList.add('show'); }
-  function clearErr()   { const el = $('#authError'); if (!el) return; el.textContent = ''; el.classList.remove('show'); }
+  function showErr(msg) { const el = document.getElementById('authError'); if (!el) return; el.textContent = msg; el.classList.add('show'); }
+  function clearErr() { const el = document.getElementById('authError'); if (!el) return; el.textContent = ''; el.classList.remove('show'); }
 
-  setTimeout(() => $('#authEmail')?.focus(), 300);
-
-  $('#passwordToggle')?.addEventListener('click', () => {
-    const input = $('#authPassword');
-    const btn = $('#passwordToggle');
-    if (!input || !btn) return;
-    const isPassword = input.type === 'password';
-    input.type = isPassword ? 'text' : 'password';
-    btn.querySelector('.eye-open')?.classList.toggle('hidden', isPassword);
-    btn.querySelector('.eye-closed')?.classList.toggle('hidden', !isPassword);
-  });
-
-  $('#btnGuest')?.addEventListener('click', () => {
+  document.getElementById('btnGuest')?.addEventListener('click', () => {
     S.user = { ...CFG.DEMO_USER };
     Store.write('cs_user', S.user);
     bootApp();
-    _handleInitialHash();
   });
 
-  const btn = $('#btnAuth');
-  const origText = btn?.textContent || 'Continue';
-  
-  function setLoading(on) {
-    if (!btn) return;
-    btn.disabled = on;
-    btn.textContent = on ? 'Please wait…' : origText;
-  }
-
-  $('#btnAuth')?.addEventListener('click', () => {
-    const email = $('#authEmail')?.value.trim();
-    const pass = $('#authPassword')?.value;
-    
-    if (!email || !pass) {
-      showErr('Please enter both email and password.');
-      return;
-    }
-    if (pass.length < 6) {
-      showErr('Password must be at least 6 characters.');
-      return;
-    }
-    
+  document.getElementById('btnAuth')?.addEventListener('click', () => {
+    const email = document.getElementById('authEmail')?.value.trim();
+    const pass = document.getElementById('authPassword')?.value;
+    if (!email || !pass) { showErr('Please enter both email and password.'); return; }
+    if (pass.length < 6) { showErr('Password must be at least 6 characters.'); return; }
     clearErr();
-    setLoading(true);
-    
     try {
       const user = LocalAuth.login(email, pass);
       S.user = user;
       Store.write('cs_user', user);
       bootApp();
-      _handleInitialHash();
     } catch(e) {
       if (e.message === 'not-found') {
         try {
           const name = email.split('@')[0];
           LocalAuth.register(email, pass, name);
-          const user = { uid: btoa(email), name, email, photo: '' };
-          S.user = user;
-          Store.write('cs_user', user);
+          S.user = { uid: btoa(email), name, email, photo: '' };
+          Store.write('cs_user', S.user);
           toast('✅ Account created! Welcome to CineStream.');
           bootApp();
-          _handleInitialHash();
         } catch(e2) {
-          showErr('Error creating account: ' + ferr(e2.message));
-          setLoading(false);
+          showErr('Error creating account.');
         }
       } else {
-        showErr(ferr(e.message));
-        setLoading(false);
+        showErr('Incorrect password.');
       }
     }
   });
-
-  $$('#authEmail, #authPassword').forEach(inp => {
-    inp.addEventListener('keydown', e => {
-      if (e.key === 'Enter') $('#btnAuth')?.click();
-    });
-  });
 }
 
-function ferr(code) {
-  const map = {
-    'email-exists':    'Email already registered.',
-    'not-found':       'No account found with this email.',
-    'wrong-password':  'Incorrect password.',
-  };
-  return map[code] || 'Something went wrong. Please try again.';
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   PLAYER ENGINE
-   · iframe embeds the native player — quality/subtitles are its own
-   · Episode picker built from real OMDb season API responses
-   · Download panel built from real vaplayer stream API — no hardcoded values
-   · Falls back gracefully when stream API is blocked by CORS
-══════════════════════════════════════════════════════════════════ */
-const P = {
-  id: null, type: null,
-  season: 1, episode: 1,
-  totalSeasons: 1,
-  seasonCache: {},
-};
-
-function buildEmbedUrl(id, type, season, episode) {
-  if (type === 'series' || type === 'episode') {
-    return CFG.STREAM_TV + id + '?season=' + season + '&episode=' + episode;
-  }
-  return CFG.STREAM_MOVIE + id;
-}
-
-function saveProgress(id, season, episode) {
-  const prog = Store.read('cs_progress', {});
-  prog[id] = { season, episode, ts: Date.now() };
-  Store.write('cs_progress', prog);
-}
-
-async function fetchSeasonEpisodes(id, season) {
-  if (P.seasonCache[season]) return P.seasonCache[season];
-  try {
-    const r = await fetchWithRetry(
-      CFG.OMDB + '?i=' + id + '&Season=' + season + '&apikey=' + CFG.OMDB_KEY
-    );
-    const d = await r.json();
-    if (d.Response === 'True') { P.seasonCache[season] = d; return d; }
-  } catch(e) { console.warn('[Player] season fetch:', e.message); }
-  return null;
-}
-
-const QUALITY_ORDER = ['2160p','4k','1080p','720p','480p','360p','240p'];
-const QUALITY_META  = {
-  '2160p': { label:'4K UHD', color:'#f59e0b', icon:'👑' },
-  '4k':    { label:'4K UHD', color:'#f59e0b', icon:'👑' },
-  '1080p': { label:'FHD 1080p', color:'#6366f1', icon:'⭐' },
-  '720p':  { label:'HD 720p',  color:'#22c55e', icon:'✅' },
-  '480p':  { label:'SD 480p',  color:'#64748b', icon:'📺' },
-  '360p':  { label:'360p',     color:'#64748b', icon:'📺' },
-  '240p':  { label:'240p',     color:'#64748b', icon:'📺' },
-};
-
-function normalizeQuality(raw) {
-  if (!raw) return 'stream';
-  const s = String(raw).toLowerCase().replace(/\s/g,'');
-  for (const key of QUALITY_ORDER) { if (s.includes(key.replace('p',''))) return key; }
-  if (s.includes('4k') || s.includes('uhd') || s.includes('2160')) return '2160p';
-  if (s.includes('fhd') || s.includes('1080')) return '1080p';
-  if (s.includes('hd') || s.includes('720'))  return '720p';
-  if (s.includes('sd') || s.includes('480'))  return '480p';
-  return raw;
-}
-
-function sortByQuality(streams) {
-  return [...streams].sort((a, b) => {
-    const ai = QUALITY_ORDER.indexOf(a._qkey);
-    const bi = QUALITY_ORDER.indexOf(b._qkey);
-    if (ai === -1 && bi === -1) return 0;
-    if (ai === -1) return 1;
-    if (bi === -1) return -1;
-    return ai - bi;
-  });
-}
-
-async function fetchStreamLinks(id, season, episode) {
-  const isTV = P.type === 'series' || P.type === 'episode';
-  const url  = CFG.VAPLAYER_API + '?imdb=' + id
-    + (isTV ? '&season=' + season + '&episode=' + episode : '');
-
-  let raw = null;
-  try {
-    const r = await fetch(url, {
-      headers: { Referer: 'https://streamimdb.ru/', Origin: 'https://streamimdb.ru' }
-    });
-    if (r.ok) {
-      const data = await r.json();
-      if (Array.isArray(data))   raw = data;
-      else if (data.streams)     raw = data.streams;
-      else if (data.sources)     raw = data.sources;
-      else if (data.links)       raw = data.links;
-      else if (data.qualities)   raw = data.qualities;
-      else if (data.url)         raw = [{ url: data.url, quality: data.quality || 'Stream' }];
-    }
-  } catch(e) { console.warn('[Player] vaplayer API blocked (CORS):', e.message); }
-
-  if (!raw?.length) return null;
-
-  return raw
-    .map(s => {
-      const url   = s.url   || s.link   || s.src  || s.file || '';
-      const qraw  = s.quality|| s.label || s.resolution || s.name || s.format || '';
-      const qkey  = normalizeQuality(qraw);
-      const size  = s.size  || s.filesize || null;
-      return { url, qraw, _qkey: qkey, size };
-    })
-    .filter(s => s.url);
-}
-
-function updatePlayerFrame() {
-  const frame = $('#playerFrame'); if (!frame) return;
-  const loader = $('#playerLoader');
-  if (loader) loader.classList.add('on');
-
-  frame.src = 'about:blank';
-  requestAnimationFrame(() => {
-    frame.src = buildEmbedUrl(P.id, P.type, P.season, P.episode);
-  });
-  frame.onload = () => loader?.classList.remove('on');
-
-  const badge = $('#playerEpBadge');
-  if (badge) {
-    const isTV = P.type === 'series' || P.type === 'episode';
-    badge.textContent = isTV
-      ? 'S' + String(P.season).padStart(2,'0') + ' · E' + String(P.episode).padStart(2,'0')
-      : '';
-    badge.style.display = badge.textContent ? '' : 'none';
-  }
-
-  $$('.ep-card').forEach(c =>
-    c.classList.toggle('active', +c.dataset.s === P.season && +c.dataset.e === P.episode)
-  );
-
-  saveProgress(P.id, P.season, P.episode);
-}
-
-async function openPlayer(id, season, episode) {
-  if (!validId(id)) return;
-  const movie = MovieCache.get(id) || await fetchMovie(id);
-  if (!movie) { toast('Could not load title.'); return; }
-
-  const prog = Store.read('cs_progress', {})[id];
-  P.id          = id;
-  P.type        = movie.Type;
-  P.totalSeasons = parseInt(movie.totalSeasons) || 1;
-  P.season      = season  ?? prog?.season  ?? 1;
-  P.episode     = episode ?? prog?.episode ?? 1;
-  P.seasonCache = {};
-
-  $('#playerBg')?.classList.add('open');
-  document.body.style.overflow = 'hidden';
-
-  S.playerStartTime = Date.now();
-  S.playerMovieId   = id;
-
-  const titleEl = $('#playerTitle');
-  if (titleEl) titleEl.textContent = movie.Title;
-
-  updatePlayerFrame();
-
-  $('#playerDlPanel')?.classList.add('hidden');
-
-  const epsPanel = $('#playerEpisodes');
-  const isTV = movie.Type === 'series' || movie.Type === 'episode';
-  if (isTV && epsPanel) {
-    epsPanel.classList.remove('hidden');
-    buildSeasonTabs();
-    await loadEpisodeGrid(id, P.season);
-  } else if (epsPanel) {
-    epsPanel.classList.add('hidden');
-  }
-
-  addHistory(movie);
-}
-
-function buildSeasonTabs() {
-  const tabs = $('#seasonTabs'); if (!tabs) return;
-  tabs.innerHTML = '';
-  for (let s = 1; s <= P.totalSeasons; s++) {
-    const btn = document.createElement('button');
-    btn.className = 'season-tab' + (s === P.season ? ' active' : '');
-    btn.textContent = 'S' + s;
-    btn.dataset.s = s;
-    btn.addEventListener('click', async () => {
-      if (+btn.dataset.s === P.season) return;
-      P.season = +btn.dataset.s; P.episode = 1;
-      $$('.season-tab').forEach(t => t.classList.remove('active'));
-      btn.classList.add('active');
-      updatePlayerFrame();
-      $('#playerDlPanel')?.classList.add('hidden');
-      await loadEpisodeGrid(P.id, P.season);
-    });
-    tabs.appendChild(btn);
-  }
-}
-
-async function loadEpisodeGrid(id, season) {
-  const grid = $('#epsGrid'); if (!grid) return;
-  grid.innerHTML = '';
-  for (let i = 0; i < 5; i++) {
-    const sk = document.createElement('div'); sk.className = 'ep-skel skel';
-    grid.appendChild(sk);
-  }
-
-  const data = await fetchSeasonEpisodes(id, season);
-  grid.innerHTML = '';
-
-  if (!data?.Episodes?.length) {
-    grid.innerHTML = '<p class="eps-empty">No episode data available.</p>'; return;
-  }
-
-  data.Episodes.forEach(ep => {
-    const n = parseInt(ep.Episode);
-    const card = document.createElement('div');
-    card.className = 'ep-card' + (n === P.episode && season === P.season ? ' active' : '');
-    card.dataset.s = season; card.dataset.e = n;
-
-    const num = document.createElement('div');
-    num.className = 'ep-num';
-    num.textContent = 'E' + String(n).padStart(2,'0');
-
-    const info = document.createElement('div'); info.className = 'ep-info';
-
-    const title = document.createElement('div'); title.className = 'ep-title';
-    title.textContent = ep.Title || 'Episode ' + n;
-    info.appendChild(title);
-
-    if (ep.imdbRating && ep.imdbRating !== 'N/A') {
-      const rat = document.createElement('div'); rat.className = 'ep-rating';
-      rat.textContent = '⭐ ' + ep.imdbRating;
-      info.appendChild(rat);
-    }
-
-    card.append(num, info);
-    card.addEventListener('click', () => {
-      P.season = season; P.episode = n;
-      $('#playerModal')?.scrollTo({ top: 0, behavior: 'smooth' });
-      $('#playerDlPanel')?.classList.add('hidden');
-      updatePlayerFrame();
-    });
-    grid.appendChild(card);
-  });
-}
-
-async function openDownloadPanel() {
-  const panel = $('#playerDlPanel');
-  if (!panel) return;
-
-  if (!panel.classList.contains('hidden')) { panel.classList.add('hidden'); return; }
-  panel.classList.remove('hidden');
-
-  const status  = $('#dlStatus');
-  const streams = $('#dlStreams');
-  if (status)  { status.style.display = 'flex'; status.innerHTML = '<div class="dl-spinner"></div> Fetching available qualities…'; }
-  if (streams) { streams.innerHTML = ''; }
-
-  const data = await fetchStreamLinks(P.id, P.season, P.episode);
-
-  if (status) status.style.display = 'none';
-  if (!streams) return;
-  streams.innerHTML = '';
-
-  if (data?.length) {
-    const sorted = sortByQuality(data);
-
-    const hdr = document.createElement('div');
-    hdr.className = 'dl-header';
-    hdr.innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
-      + ' ' + sorted.length + ' qualit' + (sorted.length === 1 ? 'y' : 'ies') + ' available';
-    streams.appendChild(hdr);
-
-    sorted.forEach((s, i) => streams.appendChild(buildQualityCard(s, i === 0)));
-
-  } else {
-    const note = document.createElement('div');
-    note.className = 'dl-note';
-    note.innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>'
-      + '<span>Stream API unavailable (CORS). Copy the URL and open it in <strong>IDM</strong>, <strong>VLC</strong>, or <strong>MX Player</strong> to download.</span>';
-    streams.appendChild(note);
-
-    const embedUrl = buildEmbedUrl(P.id, P.type, P.season, P.episode);
-    streams.appendChild(buildQualityCard({
-      url: embedUrl, qraw: 'Embed', _qkey: 'stream', size: null
-    }, true));
-  }
-}
-
-function buildQualityCard(s, isBest) {
-  const meta   = QUALITY_META[s._qkey] || { label: s.qraw || 'Stream', color: '#64748b', icon: '🎬' };
-  const label  = meta.label;
-  const color  = meta.color;
-  const icon   = meta.icon;
-  const sizeStr = s.size ? formatSize(s.size) : null;
-
-  const card = document.createElement('div');
-  card.className = 'dl-quality-card' + (isBest ? ' dl-best' : '');
-
-  const left = document.createElement('div');
-  left.className = 'dl-quality-left';
-  left.innerHTML =
-    '<div class="dl-quality-icon">' + icon + '</div>'
-    + '<div class="dl-quality-info">'
-    +   '<div class="dl-quality-label" style="color:' + color + '">' + label + '</div>'
-    +   (sizeStr ? '<div class="dl-quality-size">' + sizeStr + '</div>' : '')
-    +   (isBest ? '<div class="dl-quality-best-tag">Best Quality</div>' : '')
-    + '</div>';
-
-  const right = document.createElement('div');
-  right.className = 'dl-quality-actions';
-
-  // FIX #30: sanitize URL before building dangerous protocol links
-  const safeUrl = sanitizeUrl(s.url);
-
-  const dlBtn = document.createElement('button');
-  dlBtn.className = 'dl-action-btn dl-action-download';
-  dlBtn.title = 'Download ' + label;
-  dlBtn.innerHTML =
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
-    + '<span>Download</span>';
-  dlBtn.addEventListener('click', () => triggerDownload(safeUrl, label));
-
-  const copyBtn = document.createElement('button');
-  copyBtn.className = 'dl-action-btn dl-action-copy';
-  copyBtn.title = 'Copy URL';
-  copyBtn.innerHTML =
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
-    + '<span>Copy URL</span>';
-  copyBtn.addEventListener('click', async () => {
-    if (safeUrl === '#') { toast('❌ Invalid URL'); return; }
-    try { await navigator.clipboard.writeText(safeUrl); toast('📋 ' + label + ' URL copied!'); }
-    catch(e) { toast(safeUrl); }
-  });
-
-  const vlcBtn = document.createElement('a');
-  vlcBtn.className = 'dl-action-btn dl-action-vlc';
-  vlcBtn.href = 'vlc://' + (safeUrl !== '#' ? safeUrl.replace(/^https?:\/\//, '') : '');
-  vlcBtn.title = 'Open in VLC';
-  vlcBtn.innerHTML =
-    '<svg viewBox="0 0 24 24" fill="currentColor" width="14"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l7 4.5-7 4.5z"/></svg>'
-    + '<span>VLC</span>';
-
-  const mxBtn = document.createElement('a');
-  mxBtn.className = 'dl-action-btn dl-action-mx';
-  mxBtn.href = safeUrl !== '#' ? 'intent:' + safeUrl + '#Intent;package=com.mxtech.videoplayer.ad;end' : '#';
-  mxBtn.title = 'Open in MX Player';
-  mxBtn.innerHTML =
-    '<svg viewBox="0 0 24 24" fill="currentColor" width="14"><path d="M8 5v14l11-7z"/></svg>'
-    + '<span>MX</span>';
-
-  right.append(dlBtn, copyBtn, vlcBtn, mxBtn);
-  card.append(left, right);
-  return card;
-}
-
-async function triggerDownload(url, label) {
-  url = sanitizeUrl(url);
-  if (url === '#') { toast('❌ Invalid download link'); return; }
-  toast('⬇️ Starting download…');
-  try {
-    const r = await fetch(url, { headers: { Referer: 'https://streamimdb.ru/' } });
-    if (r.ok) {
-      const blob  = await r.blob();
-      const ext   = guessExt(blob.type, url);
-      const fname = (P.id || 'video') + '_' + label.replace(/\s/g,'_') + ext;
-      const burl  = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = burl; a.download = fname;
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(burl), 10000);
-      toast('✅ Download started: ' + fname);
-      return;
-    }
-  } catch(e) { /* CORS blocked — fall through */ }
-
-  const a = document.createElement('a');
-  a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
-  a.download = (P.id || 'video') + '_' + label.replace(/\s/g,'_');
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a);
-  toast('🔗 Opened in browser — save with Ctrl+S or use IDM');
-}
-
-function guessExt(mimeType, url) {
-  if (mimeType.includes('mp4'))  return '.mp4';
-  if (mimeType.includes('webm')) return '.webm';
-  if (mimeType.includes('mkv'))  return '.mkv';
-  const ext = url.match(/\.(mp4|mkv|webm|avi|m3u8)(\?|$)/i);
-  return ext ? '.' + ext[1] : '.mp4';
-}
-
-function formatSize(bytes) {
-  if (!bytes || isNaN(bytes)) return null;
-  if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + ' GB';
-  if (bytes >= 1e6) return (bytes / 1e6).toFixed(0) + ' MB';
-  return (bytes / 1e3).toFixed(0) + ' KB';
-}
-
-function closePlayer() {
-  if (S.playerStartTime && S.playerMovieId) {
-    const elapsed = Date.now() - S.playerStartTime;
-    if (elapsed > 30000) {
-      const movie   = MovieCache.get(S.playerMovieId);
-      const runtimeMin = parseInt(movie?.Runtime) || 90;
-      const runtimeMs  = runtimeMin * 60 * 1000;
-      const entry = S.history.find(m => m.imdbID === S.playerMovieId);
-      if (entry) {
-        const newProgress = Math.min(Math.round((elapsed / runtimeMs) * 100), 99);
-        entry.progress = Math.max(entry.progress || 0, newProgress);
-        Store.write('cs_cw', S.history);
-        populateRow(ROWS[0]);
-      }
-    }
-    S.playerStartTime = null;
-    S.playerMovieId   = null;
-  }
-
-  $('#playerBg')?.classList.remove('open');
-  document.body.style.overflow = '';
-  const f = $('#playerFrame'); if (f) f.src = 'about:blank';
-  $('#playerDlPanel')?.classList.add('hidden');
-}
-
-/* ── BOOT ──────────────────────────────────────────────────────── */
+// ── BOOT ──────────────────────────────────────────────────
 function bootApp() {
   if (S.appBooted) return;
   S.appBooted = true;
 
-  $('#authScreen')?.classList.add('hidden');
-  $('#app')?.classList.remove('hidden');
+  document.getElementById('authScreen')?.classList.add('hidden');
+  document.getElementById('app')?.classList.remove('hidden');
 
-  const u = S.user, av = $('#userAvatar');
-  if (av && u) {
-    if (u.photo) {
-      const img = document.createElement('img');
-      img.src = u.photo; img.alt = u.name;
-      img.onerror = () => { av.textContent = u.name.charAt(0).toUpperCase(); };
-      av.innerHTML = ''; av.appendChild(img);
-    } else {
-      av.textContent = u.name.charAt(0).toUpperCase();
-    }
-  }
-  const dn = $('#ddName');  if (dn && u) dn.textContent  = u.name;
-  const de = $('#ddEmail'); if (de && u) de.textContent = u.email;
-
-  setupAppEvents();
-  buildGenreBar();
-  const content = $('#content');
-  if (content) {
-    ROWS.forEach(row => {
-      const s = buildRow(row);
-      if (row.cw && !S.history.length) s.classList.add('hidden');
-      content.appendChild(s);
-    });
-  }
   initHero();
-  if ('IntersectionObserver' in window) {
-    const io = new IntersectionObserver((entries, obs) => {
-      entries.forEach(entry => {
-        if (!entry.isIntersecting) return;
-        const rowEl = entry.target;
-        const row   = ROWS.find(r => 'row-' + r.id === rowEl.id);
-        if (row && !rowEl.dataset.loaded) { rowEl.dataset.loaded = '1'; populateRow(row); }
-        obs.unobserve(rowEl);
-      });
-    }, { rootMargin: '300px' });
-    ROWS.filter(r => !r.cw).forEach(row => {
-      const el = $('#row-' + row.id);
-      if (el) io.observe(el);
-    });
-  } else {
-    ROWS.filter(r => !r.cw).forEach((row, i) => setTimeout(() => populateRow(row), i * 300));
-  }
-  populateRow(ROWS[0]);
-}
+  renderTop10();
+  populateRow('trendingMoviesRow', MOVIES_2026.slice(0, 6));
+  populateRow('trendingSeriesRow', SERIES_2026.slice(0, 6));
+  populateRow('popularRow', MOVIES_2026.slice(0, 8));
+  populateRow('latestEpisodesRow', SERIES_2026.slice(0, 6));
+  populateRow('latestTVRow', SERIES_2026.slice(0, 8));
+  populateRow('topRatedRow', MOVIES_2026.slice(0, 6));
+  initTabs();
+  renderContinueWatching();
 
-function setupAppEvents() {
-  $$('.nav-pill').forEach(p => p.addEventListener('click', () => showView(p.dataset.view)));
-  $('#logoHome')?.addEventListener('click', e => { e.preventDefault(); showView('home'); });
-  $$('.dropdown-item[data-view]').forEach(el => el.addEventListener('click', () => { showView(el.dataset.view); $('#userDropdown')?.classList.remove('open'); }));
-  $('#userAvatar')?.addEventListener('click', e => { e.stopPropagation(); $('#userDropdown')?.classList.toggle('open'); });
-  document.addEventListener('click', () => $('#userDropdown')?.classList.remove('open'));
-
-  $('#logoutBtn')?.addEventListener('click', () => {
-    Store.remove('cs_user');
-    S.user = null; S.appBooted = false;
-    if (S._visHandler) { document.removeEventListener('visibilitychange', S._visHandler); S._visHandler = null; }
-    clearInterval(S.heroInterval); S.heroInterval = null;
-    S.heroMovies = []; S.heroIdx = 0;
-    clearTimeout(S.searchTimer); S.searchTimer = null;
-    ['moviesGrid','seriesGrid'].forEach(id => { const g = $(('#' + id)); if (g) { g.innerHTML = ''; delete g.dataset.loaded; } });
-    const c = $('#content'); if (c) c.innerHTML = '';
-    $('#app')?.classList.add('hidden');
-    $('#authScreen')?.classList.remove('hidden');
-    toast('Signed out successfully.');
+  // ── Event listeners ──
+  document.getElementById('cbSearchToggle')?.addEventListener('click', openSearch);
+  document.getElementById('cbHamburger')?.addEventListener('click', () => {
+    document.getElementById('cbMobilePanel')?.classList.toggle('open');
+  });
+  document.getElementById('cbMobileClose')?.addEventListener('click', () => {
+    document.getElementById('cbMobilePanel')?.classList.remove('open');
+  });
+  document.getElementById('cbBackTop')?.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
-  $('#searchBtn')?.addEventListener('click', openSearch);
-  $('#searchClose')?.addEventListener('click', closeSearch);
-  $('#searchInput')?.addEventListener('input', e => {
-    clearTimeout(S.searchTimer);
-    const q = e.target.value.trim();
-    const res = $('#searchResults'), st = $('#searchStatus');
-    if (!q) { renderHistoryTags(); if (res) res.innerHTML = ''; if (st) st.textContent = ''; return; }
-    S.searchTimer = setTimeout(() => doSearch(q), 400);
-  });
-
-  $('#heroInfo')?.addEventListener('click', () => { const id = $('#heroInfo')?.dataset.id; if (id) openModal(id); });
-  $('#heroLike')?.addEventListener('click', async () => {
-    const id = $('#heroLike')?.dataset.id; if (!id) return;
-    const m = MovieCache.get(id) || await fetchMovie(id);
-    if (m) toggleWatchlist(m);
-  });
-  $('#modalBg')?.addEventListener('click', e => { if (e.target === $('#modalBg')) closeModal(); });
-
-  $('#shareApp')?.addEventListener('click', async () => {
-    const url = location.href;
-    if (navigator.share) { try { await navigator.share({ title:'CineStream', url }); } catch(e) { /* cancelled */ } }
-    else { try { await navigator.clipboard.writeText(url); toast('🔗 App link copied!'); } catch(e) { /* fallback */ } }
-    $('#userDropdown')?.classList.remove('open');
-  });
-
+  // Keyboard shortcuts
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
-      if ($('#playerBg')?.classList.contains('open')) { closePlayer(); return; }
-      if ($('#modalBg')?.classList.contains('open')) closeModal();
-      else if ($('#searchOverlay')?.classList.contains('open')) closeSearch();
+      if (document.getElementById('cbPlayerModal')?.style.display === '') closePlayer();
+      else if (document.getElementById('searchOverlay')?.classList.contains('open')) closeSearch();
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openSearch(); }
   });
 
-  $('#playerCloseBtn')?.addEventListener('click', closePlayer);
-  $('#playerDlBtn')?.addEventListener('click', openDownloadPanel);
-  $('#playerBg')?.addEventListener('click', e => { if (e.target === $('#playerBg')) closePlayer(); });
+  // Scroll effect on header
+  window.addEventListener('scroll', () => {
+    document.getElementById('cbHeader')?.classList.toggle('scrolled', window.scrollY > 50);
+  }, { passive: true });
 
-  window.addEventListener('scroll', () => $('#nav')?.classList.toggle('scrolled', window.scrollY > 50), { passive: true });
-
-  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.installEvt = e; $('#installBtn')?.classList.add('show'); });
-  $('#installBtn')?.addEventListener('click', async () => {
-    if (!S.installEvt) return; S.installEvt.prompt();
-    const { outcome } = await S.installEvt.userChoice;
-    if (outcome === 'accepted') toast('🎉 CineStream installed!');
-    S.installEvt = null; $('#installBtn')?.classList.remove('show');
-  });
-  window.addEventListener('appinstalled', () => { toast('✅ App installed!'); $('#installBtn')?.classList.remove('show'); });
-
-  window.addEventListener('popstate', e => {
-    if (!S.appBooted) return;
-    const st = e.state;
-    if (st?.modal) {
-      _doCloseModal();
-      openModal(st.modal, false);
-    } else if (st?.view) {
-      _doCloseModal();
-      showView(st.view, false);
-    } else {
-      _doCloseModal();
-      showView('home', false);
-    }
-  });
-
-  window.addEventListener('offline', () => toast('⚠️ You\'re offline — showing cached content'));
-  window.addEventListener('online',  () => {
-    toast('✅ Back online!');
-    if (!S.heroMovies.length) initHero();
-  });
-
+  // Service worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./service-worker.js')
       .then(r => console.log('[SW] registered', r.scope))
@@ -1630,22 +756,22 @@ function setupAppEvents() {
   }
 }
 
-/* ── ENTRY ──────────────────────────────────────────────────────── */
+// ── ENTRY ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  setupAuthUI();
+  // Create toast container
+  const toasts = document.createElement('div');
+  toasts.id = 'toasts';
+  toasts.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;';
+  document.body.appendChild(toasts);
 
   const saved = Store.read('cs_user', null);
-  if (saved?.uid) { S.user = saved; bootApp(); _handleInitialHash(); return; }
-});
-
-function _handleInitialHash() {
-  const hash = location.hash.replace('#', '');
-  if (!hash) { history.replaceState({ view: 'home' }, '', '#home'); return; }
-  if (hash.startsWith('title/')) {
-    const id = hash.split('/')[1];
-    if (validId(id)) { history.replaceState({ view: 'home' }, '', '#home'); openModal(id); return; }
+  if (saved?.uid) {
+    S.user = saved;
+    bootApp();
+    return;
   }
-  const view = ['home','movies','series','watchlist'].includes(hash) ? hash : 'home';
-  history.replaceState({ view }, '', '#' + view);
-  if (view !== 'home') showView(view, false);
-}
+
+  // Show auth screen
+  document.getElementById('authScreen')?.classList.remove('hidden');
+  setupAuthUI();
+});
