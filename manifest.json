@@ -1,13 +1,13 @@
 {
-  "name": "CineStream — Movies & Series",
+  "name": "CineStream — Movies & Series 2026",
   "short_name": "CineStream",
-  "description": "Your personal Netflix-like streaming guide",
+  "description": "Your personal streaming guide for 2026 movies and TV shows.",
   "id": "/cinestream/",
   "scope": "/cinestream/",
   "start_url": "/cinestream/",
   "display": "standalone",
   "background_color": "#0a0a0a",
-  "theme_color": "#E50914",
+  "theme_color": "#dc2626",
   "orientation": "portrait-primary",
   "lang": "en",
   "icons": [

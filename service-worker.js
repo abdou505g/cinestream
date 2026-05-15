@@ -1,10 +1,18 @@
-const CACHE     = 'cinestream-v5';
+const CACHE = 'cinestream-v5';
 const API_CACHE = 'cinestream-api-v5';
 const IMG_CACHE = 'cinestream-img-v5';
 
-const STATIC = ['./','./index.html','./style.css','./app.js','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
-const API_TTL_MS  = 48 * 60 * 60 * 1000; // 48 h — matches app CFG
-const IMG_MAX     = 200;                  // max cached images
+const STATIC = [
+  './',
+  './index.html',
+  './style.css',
+  './app.js',
+  './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
+];
+const API_TTL_MS = 48 * 60 * 60 * 1000;
+const IMG_MAX = 200;
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -24,7 +32,6 @@ self.addEventListener('activate', e => {
   );
 });
 
-// ── Helpers ────────────────────────────────────────────────────
 function storeWithTimestamp(cacheName, req, res) {
   return caches.open(cacheName).then(c => {
     const headers = new Headers(res.headers);
@@ -51,7 +58,7 @@ async function trimImageCache() {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // OMDb API — cache-first with TTL, then network
+  // OMDb API — cache-first with TTL
   if (url.hostname === 'www.omdbapi.com') {
     e.respondWith(
       caches.open(API_CACHE).then(async c => {
@@ -61,16 +68,19 @@ self.addEventListener('fetch', e => {
           const r = await fetch(e.request);
           if (r.ok) void storeWithTimestamp(API_CACHE, e.request, r.clone());
           return r;
-        } catch(_) { return cached || new Response('{}', { status: 503 }); }
+        } catch(_) {
+          return cached || new Response('{}', { status: 503 });
+        }
       })
     );
     return;
   }
 
-  // Images — cache-first, trim to IMG_MAX
+  // Images — cache-first
   if (e.request.destination === 'image') {
     e.respondWith(
-      caches.match(e.request).then(cached => cached ||
+      caches.match(e.request).then(cached =>
+        cached ||
         fetch(e.request).then(r => {
           if (r.ok) {
             void storeWithTimestamp(IMG_CACHE, e.request, r.clone());

@@ -2,373 +2,373 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <meta name="theme-color" content="#E50914"/>
-  <meta name="description" content="CineStream — Your personal streaming guide"/>
-  <!-- FIX #21: prevent search engines from indexing a PWA app shell -->
-  <meta name="robots" content="noindex,nofollow"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0"/>
+  <meta name="robots" content="index, follow"/>
+  <title>CineStream – 2026 Movies & TV Shows</title>
+  <meta name="description" content="Browse the latest movies and TV shows of 2026. Free HD streaming guide."/>
+  <meta name="theme-color" content="#dc2626"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="CineStream"/>
-  <!-- FIX #18: Content Security Policy -->
-  <!-- FIX #18 (improved): removed unsafe-inline from script-src — all JS is in app.js (deferred) -->
-  <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self';
-    script-src  'self';
-    style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
-    font-src    'self' https://fonts.gstatic.com;
-    img-src     'self' data: https: blob:;
-    connect-src 'self' https://www.omdbapi.com https://streamdata.vaplayer.ru;
-    frame-src   'self' https://streamimdb.ru https://streamdata.vaplayer.ru;
-    media-src   'self' https://streamimdb.ru blob:;
-    object-src  'none';
-  "/>
-  <title>CineStream 🎬</title>
   <link rel="manifest" href="manifest.json"/>
-  <!-- FIX #22: accessibility focus styles in CSS -->
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
   <link rel="stylesheet" href="style.css"/>
-  <!-- scripts deferred to avoid blocking page render -->
 </head>
 <body>
 
-<!-- FIX #23: noscript fallback for users with JS disabled -->
-<noscript>
-  <div style="font-family:sans-serif;text-align:center;padding:4rem;background:#0a0a0a;color:#fff;min-height:100vh;">
-    <h1 style="color:#E50914">CineStream</h1>
-    <p>CineStream requires JavaScript to run. Please enable it in your browser settings.</p>
-  </div>
-</noscript>
-
-<!-- ════════════════════════════════════════════════════
-     AUTH SCREEN
-════════════════════════════════════════════════════ -->
-<div class="auth-screen" id="authScreen" role="main">
-  <div class="auth-card" id="authCard">
-
-    <div class="auth-logo" aria-label="CineStream">CINE<span>STREAM</span></div>
-    <p class="auth-tagline">Your personal movie companion</p>
-
-    <!-- PRIMARY: GUEST ACCESS -->
+<!-- ═══ AUTH SCREEN ═══ -->
+<div class="auth-screen hidden" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">CINE<span>STREAM</span></div>
+    <p class="auth-tagline">Your personal streaming guide · May 2026</p>
     <button class="btn-guest" id="btnGuest" type="button">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/>
-      </svg>
-      Continue as Guest
+      <i class="bi bi-play-circle-fill"></i> Watch as Guest
     </button>
-
-    <!-- DIVIDER -->
-    <div class="auth-divider"><span>or sign in to sync data</span></div>
-
-    <!-- SMART AUTH: Single form that handles both login and signup -->
-    <div class="auth-error" id="authError" role="alert" aria-live="assertive"></div>
-
-    <div id="authForm" role="form" aria-label="Authentication">
-      <div class="field">
-        <label class="field-label" for="authEmail">Email</label>
-        <input type="email" class="field-input" id="authEmail"
-               placeholder="you@example.com"
-               autocomplete="email"
-               inputmode="email"
-               aria-required="true"/>
-      </div>
-      <div class="field">
-        <label class="field-label" for="authPassword">Password</label>
-        <div class="password-field">
-          <input type="password" class="field-input" id="authPassword"
-                 placeholder="Min 6 characters"
-                 autocomplete="current-password"
-                 aria-required="true"
-                 minlength="6"/>
-          <button type="button" class="password-toggle" id="passwordToggle" aria-label="Show password">
-            <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-            <svg class="eye-closed hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-              <line x1="1" y1="1" x2="23" y2="23"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-      <button class="btn-primary" id="btnAuth" type="button">Continue</button>
-      <p class="auth-hint">New users are automatically registered</p>
+    <div class="auth-divider"><span>or sign in / create account</span></div>
+    <div id="authError" class="auth-error"></div>
+    <div class="field">
+      <label class="field-label" for="authEmail">Email</label>
+      <input class="field-input" id="authEmail" type="email" placeholder="you@example.com" autocomplete="email"/>
     </div>
-
-    <div class="auth-notice" role="note">
-      ℹ️ Accounts are saved in this browser only. Guest mode recommended for most users.
+    <div class="field">
+      <label class="field-label" for="authPassword">Password</label>
+      <div class="password-field">
+        <input class="field-input" id="authPassword" type="password" placeholder="Min. 6 characters" autocomplete="current-password"/>
+        <button class="password-toggle" type="button" tabindex="-1" onclick="const p=document.getElementById('authPassword');p.type=p.type==='password'?'text':'password'">
+          <i class="bi bi-eye"></i>
+        </button>
+      </div>
     </div>
+    <button class="btn-primary" id="btnAuth" type="button">Sign In / Register</button>
+    <p class="auth-hint">New email = auto-register · Same email = sign in</p>
+    <div class="auth-notice"><i class="bi bi-shield-check"></i> Stored locally. No data sent to servers.</div>
+  </div>
+</div>
 
-  </div><!-- /auth-card -->
-</div><!-- /auth-screen -->
-
-<!-- ════════════════════════════════════════════════════
-     MAIN APP
-════════════════════════════════════════════════════ -->
+<!-- ═══ APP WRAPPER ═══ -->
 <div id="app" class="hidden">
 
-  <div class="nav-grad" aria-hidden="true"></div>
-
-  <!-- NAV -->
-  <nav class="nav" id="nav" aria-label="Main navigation">
-    <a href="#" class="nav-logo" id="logoHome" aria-label="CineStream home">CINE<span>STREAM</span></a>
-
-    <div class="nav-center" role="navigation" aria-label="Content navigation">
-      <button class="nav-pill active" data-view="home">Home</button>
-      <button class="nav-pill" data-view="movies">Movies</button>
-      <button class="nav-pill" data-view="series">Series</button>
-      <button class="nav-pill" data-view="watchlist">My List</button>
+<!-- ═══ HEADER ═══ -->
+<header class="cb-header" id="cbHeader">
+  <div class="cb-header-inner">
+    <a class="cb-logo" href="/" aria-label="CineStream home">
+      <span class="cb-logo-text">CINE<span>STREAM</span></span>
+    </a>
+    <nav class="cb-nav" id="cbNav">
+      <a class="cb-nav-link active" href="/">Home</a>
+      <a class="cb-nav-link" href="/movies">Movies</a>
+      <a class="cb-nav-link" href="/tv-shows">TV Shows</a>
+      <div class="cb-dropdown">
+        <button class="cb-nav-link cb-dropdown-toggle" type="button">Genres <i class="bi bi-chevron-down"></i></button>
+        <div class="cb-dropdown-menu cb-dropdown-scroll">
+          <a class="cb-dropdown-item" href="/category/action">Action</a>
+          <a class="cb-dropdown-item" href="/category/adventure">Adventure</a>
+          <a class="cb-dropdown-item" href="/category/animation">Animation</a>
+          <a class="cb-dropdown-item" href="/category/comedy">Comedy</a>
+          <a class="cb-dropdown-item" href="/category/crime">Crime</a>
+          <a class="cb-dropdown-item" href="/category/documentary">Documentary</a>
+          <a class="cb-dropdown-item" href="/category/drama">Drama</a>
+          <a class="cb-dropdown-item" href="/category/family">Family</a>
+          <a class="cb-dropdown-item" href="/category/fantasy">Fantasy</a>
+          <a class="cb-dropdown-item" href="/category/horror">Horror</a>
+          <a class="cb-dropdown-item" href="/category/mystery">Mystery</a>
+          <a class="cb-dropdown-item" href="/category/romance">Romance</a>
+          <a class="cb-dropdown-item" href="/category/sci-fi">Sci-Fi</a>
+          <a class="cb-dropdown-item" href="/category/thriller">Thriller</a>
+          <a class="cb-dropdown-item" href="/category/western">Western</a>
+        </div>
+      </div>
+      <div class="cb-dropdown">
+        <button class="cb-nav-link cb-dropdown-toggle" type="button">Year <i class="bi bi-chevron-down"></i></button>
+        <div class="cb-dropdown-menu cb-dropdown-scroll">
+          <a class="cb-dropdown-item" href="/year/2026">2026</a>
+          <a class="cb-dropdown-item" href="/year/2025">2025</a>
+          <a class="cb-dropdown-item" href="/year/2024">2024</a>
+          <a class="cb-dropdown-item" href="/year/2023">2023</a>
+          <a class="cb-dropdown-item" href="/year/2022">2022</a>
+        </div>
+      </div>
+      <a class="cb-nav-link" href="#" id="cbWatchlistNav"><i class="bi bi-bookmark"></i> My List</a>
+    </nav>
+    <div class="cb-header-actions">
+      <button class="cb-search-toggle" id="cbSearchToggle" aria-label="Search"><i class="bi bi-search"></i></button>
+      <div class="cb-user-avatar" id="cbUserAvatar" title="Profile">
+        <i class="bi bi-person-circle"></i>
+      </div>
+      <button class="cb-hamburger" id="cbHamburger" aria-label="Menu"><span></span><span></span><span></span></button>
     </div>
+  </div>
+</header>
 
-    <div class="nav-right">
-      <button class="install-btn" id="installBtn" aria-label="Install CineStream app">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" aria-hidden="true">
-          <path d="M12 16l-4-4 1.4-1.4L11 12.2V4h2v8.2l1.6-1.6L16 12l-4 4zm-6 4v-2h12v2H6z"/>
-        </svg>
-        Install App
-      </button>
-      <button class="nav-icon-btn" id="searchBtn" aria-label="Search movies and series">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-        </svg>
-      </button>
-      <div class="user-menu">
-        <!-- FIX #24: button role for keyboard accessibility -->
-        <div class="user-avatar" id="userAvatar" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false" aria-label="Account menu">CS</div>
-        <div class="user-dropdown" id="userDropdown" role="menu" aria-label="Account options">
-          <div class="dropdown-header">
-            <div class="dropdown-name" id="ddName">User</div>
-            <div class="dropdown-email" id="ddEmail"></div>
-          </div>
-          <div class="dropdown-item" data-view="watchlist" role="menuitem" tabindex="0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-            My Watchlist
-          </div>
-          <div class="dropdown-item" id="shareApp" role="menuitem" tabindex="0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
-            Share App
-          </div>
-          <div class="dropdown-item danger" id="logoutBtn" role="menuitem" tabindex="0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            Sign Out
-          </div>
+<!-- ═══ HERO SLIDER ═══ -->
+<section class="cb-hero" id="cbHero">
+  <div class="cb-slides">
+    <!-- Slide 1: Mission Impossible Final Reckoning -->
+    <div class="cb-slide active">
+      <div class="cb-slide-bg" style="background-image:url('https://image.tmdb.org/t/p/w1280/z53D72EAOxGRqdr7KXXWp9dJiDe.jpg')"></div>
+      <div class="cb-slide-gradient"></div>
+      <div class="cb-slide-content">
+        <div class="cb-slide-badge"><i class="bi bi-fire"></i> Trending Now</div>
+        <h1 class="cb-slide-title">Mission: Impossible</h1>
+        <div class="cb-slide-meta">
+          <span class="cb-tag">Action</span><span class="cb-tag">Thriller</span>
+          <span class="cb-slide-dot">·</span>
+          <span>2026</span>
+          <span class="cb-slide-dot">·</span>
+          <span><i class="bi bi-star-fill" style="color:#fbbf24"></i> 8.5</span>
+        </div>
+        <p class="cb-slide-desc">Ethan Hunt races against time in his most dangerous mission yet — one that will determine the fate of humanity itself.</p>
+        <div class="cb-slide-actions">
+          <button class="cb-btn cb-btn-play cb-slide-play" data-embed="/embed/movie/tt9603212"><i class="bi bi-play-fill"></i> Play Now</button>
+          <button class="cb-btn cb-btn-ghost-sm cb-slide-info" data-id="tt9603212"><i class="bi bi-info-circle"></i> More Info</button>
         </div>
       </div>
     </div>
-  </nav>
-
-  <!-- SEARCH OVERLAY -->
-  <div class="search-overlay" id="searchOverlay" role="dialog" aria-modal="true" aria-label="Search">
-    <div class="search-bar">
-      <div class="search-input-wrap">
-        <!-- FIX #26: type="text" is safer than type="search" (avoids browser-injected clear button conflicts) -->
-        <input type="text" class="search-input" id="searchInput"
-               placeholder="Search movies, series, actors…"
-               autocomplete="off" autocorrect="off" autocapitalize="off"
-               spellcheck="false" role="searchbox" aria-label="Search"/>
-        <span class="search-input-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        </span>
-      </div>
-      <button class="search-cancel" id="searchClose" aria-label="Close search">Cancel</button>
-    </div>
-    <div class="search-history" id="searchHistory" aria-label="Recent searches">
-      <div class="search-history-title">Recent Searches</div>
-      <div class="search-history-tags" id="historyTags" role="list"></div>
-    </div>
-    <div class="search-status" id="searchStatus" role="status" aria-live="polite"></div>
-    <div class="search-results" id="searchResults" role="list"></div>
-  </div>
-
-  <!-- HOME VIEW -->
-  <div id="viewHome" aria-label="Home">
-    <!-- HERO -->
-    <section class="hero" id="hero" aria-label="Featured title">
-      <div class="hero-bg" aria-hidden="true"><img id="heroBgImg" alt=""/></div>
-      <div class="hero-vignette" aria-hidden="true"></div>
-      <div class="hero-body">
-        <div class="hero-tags" id="heroTags" aria-hidden="true"></div>
-        <h1 class="hero-title" id="heroTitle">Loading…</h1>
-        <div class="hero-row">
-          <span class="hero-rating" id="heroRating" aria-label="Rating"></span>
-          <span class="hero-year"   id="heroYear"></span>
-          <span class="hero-runtime" id="heroRuntime"></span>
+    <!-- Slide 2: The Punisher -->
+    <div class="cb-slide">
+      <div class="cb-slide-bg" style="background-image:url('https://image.tmdb.org/t/p/w1280/wjcPbV53ovhlogVFYdmkTDBooqg.jpg')"></div>
+      <div class="cb-slide-gradient"></div>
+      <div class="cb-slide-content">
+        <div class="cb-slide-badge"><i class="bi bi-lightning-fill"></i> New Release</div>
+        <img src="https://image.tmdb.org/t/p/w500/lReCKrf9vGHcmhiqpsMgDgNzWPr.png" alt="The Punisher: One Last Kill" class="cb-slide-title-logo"/>
+        <div class="cb-slide-meta">
+          <span class="cb-tag">Action</span><span class="cb-tag">Crime</span>
+          <span class="cb-slide-dot">·</span>
+          <span>2026</span>
+          <span class="cb-slide-dot">·</span>
+          <span><i class="bi bi-star-fill" style="color:#fbbf24"></i> 9.0</span>
         </div>
-        <p class="hero-plot" id="heroPlot"></p>
-        <div class="hero-actions">
-          <!-- FIX #17: noreferrer on external play link -->
-          <a href="#" class="btn-play" id="heroPlay"
-             target="_blank" rel="noopener noreferrer"
-             aria-label="Play this title">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-            Play
-          </a>
-          <button class="btn-ghost" id="heroInfo" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-            More Info
-          </button>
-          <button class="btn-circle" id="heroLike" type="button" aria-label="Add to watchlist">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-          </button>
+        <div class="cb-slide-actions">
+          <button class="cb-btn cb-btn-play cb-slide-play" data-embed="/embed/movie/tt32141377"><i class="bi bi-play-fill"></i> Play Now</button>
+          <button class="cb-btn cb-btn-ghost-sm cb-slide-info" data-id="tt32141377"><i class="bi bi-info-circle"></i> More Info</button>
         </div>
       </div>
-      <div class="hero-dots" id="heroDots" role="tablist" aria-label="Featured titles navigation"></div>
-      <div class="hero-progress" aria-hidden="true"><div class="hero-progress-bar" id="heroProgressBar"></div></div>
-    </section>
-
-    <!-- GENRE BAR -->
-    <div class="genre-bar" id="genreBar" role="group" aria-label="Filter by genre"></div>
-
-    <!-- CONTENT ROWS -->
-    <div class="content" id="content" aria-label="Browse content"></div>
-  </div>
-
-  <!-- MOVIES VIEW -->
-  <div id="viewMovies" class="page" aria-label="Movies">
-    <div class="page-title">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="2.18"/><path d="M7 2v20M17 2v20M2 12h20M2 7h5M17 7h5M2 17h5M17 17h5"/></svg>
-      Movies
     </div>
-    <div class="page-grid" id="moviesGrid" role="list"></div>
-  </div>
-
-  <!-- SERIES VIEW -->
-  <div id="viewSeries" class="page" aria-label="Series">
-    <div class="page-title">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" aria-hidden="true"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
-      Series
+    <!-- Slide 3: The Boys S5 -->
+    <div class="cb-slide">
+      <div class="cb-slide-bg" style="background-image:url('https://image.tmdb.org/t/p/w1280/mY7SeH4HFFxW1hiI6cWuwCRKptN.jpg')"></div>
+      <div class="cb-slide-gradient"></div>
+      <div class="cb-slide-content">
+        <div class="cb-slide-badge"><i class="bi bi-tv"></i> Series · Season 5</div>
+        <h1 class="cb-slide-title">The Boys</h1>
+        <div class="cb-slide-meta">
+          <span class="cb-tag">Action</span><span class="cb-tag">Sci-Fi</span>
+          <span class="cb-slide-dot">·</span>
+          <span>2026</span>
+          <span class="cb-slide-dot">·</span>
+          <span><i class="bi bi-star-fill" style="color:#fbbf24"></i> 8.7</span>
+        </div>
+        <p class="cb-slide-desc">The explosive final season of the Emmy-winning series — the supes are at war, and nothing is off limits.</p>
+        <div class="cb-slide-actions">
+          <button class="cb-btn cb-btn-play cb-slide-play" data-embed="/embed/tv/tt11198330"><i class="bi bi-play-fill"></i> Play Now</button>
+          <button class="cb-btn cb-btn-ghost-sm cb-slide-info" data-id="tt11198330"><i class="bi bi-info-circle"></i> More Info</button>
+        </div>
+      </div>
     </div>
-    <div class="page-grid" id="seriesGrid" role="list"></div>
+    <!-- Slide 4: Jurassic World Rebirth -->
+    <div class="cb-slide">
+      <div class="cb-slide-bg" style="background-image:url('https://image.tmdb.org/t/p/w1280/ikcNOWB6Qo1ER1H1BJL6Vf0W22s.jpg')"></div>
+      <div class="cb-slide-gradient"></div>
+      <div class="cb-slide-content">
+        <div class="cb-slide-badge"><i class="bi bi-film"></i> Now Streaming</div>
+        <h1 class="cb-slide-title">Jurassic World: Rebirth</h1>
+        <div class="cb-slide-meta">
+          <span class="cb-tag">Adventure</span><span class="cb-tag">Sci-Fi</span>
+          <span class="cb-slide-dot">·</span>
+          <span>2025</span>
+          <span class="cb-slide-dot">·</span>
+          <span><i class="bi bi-star-fill" style="color:#fbbf24"></i> 7.2</span>
+        </div>
+        <p class="cb-slide-desc">A new chapter in the Jurassic universe — five years after the events of Dominion, nature has reclaimed the Earth.</p>
+        <div class="cb-slide-actions">
+          <button class="cb-btn cb-btn-play cb-slide-play" data-embed="/embed/movie/tt11271086"><i class="bi bi-play-fill"></i> Play Now</button>
+          <button class="cb-btn cb-btn-ghost-sm cb-slide-info" data-id="tt11271086"><i class="bi bi-info-circle"></i> More Info</button>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- WATCHLIST VIEW -->
-  <div id="viewWatchlist" class="page" aria-label="My watchlist">
-    <div class="page-title">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-      My Watchlist
+  <button class="cb-slider-arrow cb-slider-prev" id="cbSliderPrev" aria-label="Previous"><i class="bi bi-chevron-left"></i></button>
+  <button class="cb-slider-arrow cb-slider-next" id="cbSliderNext" aria-label="Next"><i class="bi bi-chevron-right"></i></button>
+  <div class="cb-slider-dots" id="cbSliderDots">
+    <span class="cb-dot active" data-idx="0"></span>
+    <span class="cb-dot" data-idx="1"></span>
+    <span class="cb-dot" data-idx="2"></span>
+    <span class="cb-dot" data-idx="3"></span>
+  </div>
+</section>
+
+<!-- ═══ MAIN CONTENT ═══ -->
+<div class="cb-container">
+
+  <!-- Continue Watching -->
+  <section class="cb-section cb-cw-section" id="cbContinueWatching" style="display:none">
+    <div class="cb-section-header">
+      <h2 class="cb-section-title"><span class="cb-title-bar"></span> Continue Watching</h2>
+      <button class="cb-btn cb-btn-ghost" id="cbCwClear" style="font-size:0.78rem"><i class="bi bi-x-lg"></i> Clear All</button>
+    </div>
+    <div class="cb-row" id="cbCwGrid"></div>
+  </section>
+
+  <!-- TOP 10 -->
+  <section class="cb-section cb-top10-section">
+    <div class="cb-section-header">
+      <h2 class="cb-section-title"><span class="cb-title-bar"></span> TOP 10</h2>
+      <span class="cb-top10-badge"><i class="bi bi-calendar3"></i> May 2026</span>
+    </div>
+    <div class="cb-top10-row" id="cbTop10"></div>
+  </section>
+
+  <!-- Trending Today -->
+  <section class="cb-section cb-row-section">
+    <div class="cb-section-header">
+      <h2 class="cb-section-title"><span class="cb-title-bar"></span> Trending Today</h2>
+    </div>
+    <div class="cb-tabs" data-tabgroup="trending">
+      <button class="cb-tab active" data-tab="cb-trending-movies">Movies</button>
+      <button class="cb-tab" data-tab="cb-trending-series">Series</button>
+    </div>
+    <div class="cb-tab-content active" id="cb-trending-movies">
+      <div class="cb-row" id="trendingMoviesRow"></div>
+    </div>
+    <div class="cb-tab-content" id="cb-trending-series">
+      <div class="cb-row" id="trendingSeriesRow"></div>
+    </div>
+  </section>
+
+  <!-- Popular Now -->
+  <section class="cb-section cb-row-section">
+    <div class="cb-section-header">
+      <h2 class="cb-section-title"><span class="cb-title-bar"></span> Popular Now</h2>
+      <a href="/movies" class="cb-view-all">See all <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="cb-row" id="popularRow"></div>
+  </section>
+
+  <!-- Latest Episodes -->
+  <section class="cb-section cb-row-section">
+    <div class="cb-section-header">
+      <h2 class="cb-section-title"><span class="cb-title-bar"></span> Latest Episodes</h2>
+      <a href="/episodes" class="cb-view-all">See all <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="cb-row" id="latestEpisodesRow"></div>
+  </section>
+
+  <!-- Latest TV Shows -->
+  <section class="cb-section cb-row-section">
+    <div class="cb-section-header">
+      <h2 class="cb-section-title"><span class="cb-title-bar"></span> Latest TV Shows</h2>
+      <a href="/tv-shows" class="cb-view-all">See all <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="cb-row" id="latestTVRow"></div>
+  </section>
+
+  <!-- Top Rated -->
+  <section class="cb-section cb-row-section">
+    <div class="cb-section-header">
+      <h2 class="cb-section-title"><span class="cb-title-bar"></span> Top Rated</h2>
+      <a href="/most-viewed" class="cb-view-all">See all <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="cb-row" id="topRatedRow"></div>
+  </section>
+
+  <!-- My Watchlist (hidden, shown when switching view) -->
+  <section class="cb-section" id="watchlistSection" style="display:none">
+    <div class="cb-section-header">
+      <h2 class="cb-section-title"><span class="cb-title-bar"></span> My Watchlist</h2>
     </div>
     <div id="watchlistContent"></div>
-  </div>
+  </section>
 
-</div><!-- /app -->
+</div><!-- end .cb-container -->
 
-<!-- MOVIE MODAL -->
-<div class="modal-bg" id="modalBg" role="dialog" aria-modal="true" aria-label="Movie details">
-  <div class="modal" id="modal"></div>
-</div>
-
-<!-- ════════════════════════════════════════════════════
-     PLAYER OVERLAY (streamimdb.ru embed)
-════════════════════════════════════════════════════ -->
-<div class="player-bg" id="playerBg" role="dialog" aria-modal="true" aria-label="Video player">
-  <div class="player-modal" id="playerModal">
-
-    <!-- Top bar -->
-    <div class="player-topbar">
-      <div class="player-topbar-left">
-        <button class="player-close" id="playerCloseBtn" aria-label="Close player">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20"><path d="M19 12H5M5 12l7-7M5 12l7 7"/></svg>
-        </button>
-        <h2 class="player-title" id="playerTitle">Loading…</h2>
-        <span class="player-ep-badge" id="playerEpBadge" style="display:none"></span>
-      </div>
-      <div class="player-topbar-right">
-        <button class="player-dl-btn" id="playerDlBtn" aria-label="Streams &amp; Download">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Streams
-        </button>
-      </div>
+<!-- ═══ PLAYER MODAL ═══ -->
+<div class="cb-player-modal" id="cbPlayerModal" style="display:none">
+  <div class="cb-player-modal-backdrop" id="cbPlayerModalClose"></div>
+  <div class="cb-player-modal-body">
+    <button class="cb-player-modal-x" id="cbPlayerModalX"><i class="bi bi-x-lg"></i></button>
+    <div class="cb-player-modal-wrap" id="cbModalWrap">
+      <iframe id="cbModalPlayer" src="" allow="autoplay; fullscreen; picture-in-picture" frameborder="0" title="Video player"></iframe>
     </div>
-
-    <!-- iframe wrapper -->
-    <div class="player-frame-wrap">
-      <div class="player-loader" id="playerLoader">
-        <div class="player-loader-ring"></div>
-      </div>
-      <iframe
-        id="playerFrame"
-        class="player-frame"
-        src="about:blank"
-        allowfullscreen
-        allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-        referrerpolicy="origin"
-        loading="lazy"
-        title="Video player"
-        sandbox="allow-scripts allow-same-origin allow-popups allow-presentation allow-top-navigation-by-user-activation"
-      ></iframe>
-    </div>
-
-    <!-- Streams / Download panel -->
-    <div class="player-dl-panel hidden" id="playerDlPanel">
-      <div class="dl-status" id="dlStatus" style="display:none"></div>
-      <div class="dl-streams" id="dlStreams"></div>
-    </div>
-
-    <!-- Episode picker (series only) -->
-    <div class="player-episodes hidden" id="playerEpisodes">
-      <div class="season-tabs" id="seasonTabs" role="tablist" aria-label="Seasons"></div>
-      <div class="eps-grid" id="epsGrid" role="list"></div>
-    </div>
-
   </div>
 </div>
 
-<!-- iOS INSTALL HINT (shown only on Safari / iOS) -->
-<div class="ios-install-banner" id="iosInstallBanner" role="dialog" aria-label="Install CineStream" style="display:none">
-  <button class="ios-install-close" id="iosInstallClose" aria-label="Dismiss">✕</button>
-  <div class="ios-install-icon" aria-hidden="true">🎬</div>
-  <div class="ios-install-text">
-    <strong>Install CineStream</strong>
-    <span>Tap <strong>Share</strong> <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> then <strong>"Add to Home Screen"</strong></span>
+<!-- ═══ SEARCH OVERLAY ═══ -->
+<div class="search-overlay" id="searchOverlay" role="dialog" aria-label="Search">
+  <div style="display:flex;align-items:center;gap:12px;max-width:600px;margin:0 auto 1.5rem;width:100%;padding-top:1rem;">
+    <div class="search-input-wrap" style="flex:1;">
+      <input class="search-input" id="searchInput" type="search" placeholder="Search movies & TV shows…" autocomplete="off" spellcheck="false"/>
+      <i class="bi bi-search search-input-icon"></i>
+    </div>
+    <button class="search-cancel" id="searchCancel">Cancel</button>
   </div>
+  <p class="search-status" id="searchStatus"></p>
+  <div class="search-results" id="searchResults"></div>
 </div>
 
-<!-- TOASTS -->
-<div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
-
-<!-- scripts -->
-<script defer src="app.js"></script>
-
-<!-- ════════════════════════════════════════════════════
-     SITE FOOTER
-════════════════════════════════════════════════════ -->
-<footer class="site-footer" aria-label="Site footer">
-  <div class="footer-inner">
-
-    <!-- Brand -->
-    <div class="footer-brand">
-      <div class="footer-name">CINE<span>STREAM</span></div>
-      <div class="footer-tagline">Your personal streaming guide</div>
-    </div>
-
-    <!-- Signature -->
-    <div class="footer-sig">
-      <span class="footer-sig-label">Developed by</span>
-      <span class="footer-sig-name">ABDERRAHMANE MESSAOUDI</span>
-    </div>
-
-    <!-- GitHub -->
-    <a href="https://github.com/abdou505g"
-       target="_blank"
-       rel="noopener noreferrer"
-       class="footer-github"
-       aria-label="View source on GitHub">
-      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
-      </svg>
-      abdou505g
-    </a>
-
+<!-- ═══ MOBILE SIDE PANEL ═══ -->
+<div class="cb-mobile-panel" id="cbMobilePanel" aria-hidden="true">
+  <div class="cb-mobile-panel-header">
+    <span class="cb-logo-text" style="font-size:1.2rem;font-weight:800;color:var(--cb-accent);">CINE<span style="color:var(--text);">STREAM</span></span>
+    <button class="cb-mobile-close" id="cbMobileClose" aria-label="Close menu"><i class="bi bi-x-lg"></i></button>
   </div>
+  <div class="cb-mobile-user" id="cbMobileUser">
+    <i class="bi bi-person-circle" style="font-size:2rem;color:var(--text3);"></i>
+    <span id="cbMobileUserName">Guest</span>
+  </div>
+  <nav class="cb-mobile-nav">
+    <a class="cb-mobile-link" href="/"><i class="bi bi-house"></i> Home</a>
+    <a class="cb-mobile-link" href="/movies"><i class="bi bi-film"></i> Movies</a>
+    <a class="cb-mobile-link" href="/tv-shows"><i class="bi bi-tv"></i> TV Shows</a>
+    <a class="cb-mobile-link" href="#" id="cbMobileWatchlist"><i class="bi bi-bookmark"></i> My Watchlist</a>
+    <div class="cb-mobile-divider"></div>
+    <a class="cb-mobile-link" href="/category/action"><i class="bi bi-lightning"></i> Action</a>
+    <a class="cb-mobile-link" href="/category/drama"><i class="bi bi-heart"></i> Drama</a>
+    <a class="cb-mobile-link" href="/category/comedy"><i class="bi bi-emoji-smile"></i> Comedy</a>
+    <a class="cb-mobile-link" href="/category/sci-fi"><i class="bi bi-rocket"></i> Sci-Fi</a>
+    <a class="cb-mobile-link" href="/category/horror"><i class="bi bi-exclamation-octagon"></i> Horror</a>
+    <a class="cb-mobile-link" href="/category/thriller"><i class="bi bi-eye"></i> Thriller</a>
+    <div class="cb-mobile-divider"></div>
+    <a class="cb-mobile-link" href="/year/2026"><i class="bi bi-calendar"></i> 2026</a>
+    <a class="cb-mobile-link" href="/year/2025"><i class="bi bi-calendar"></i> 2025</a>
+    <a class="cb-mobile-link" href="/year/2024"><i class="bi bi-calendar"></i> 2024</a>
+  </nav>
+</div>
+<div class="cb-mobile-overlay" id="cbMobileOverlay"></div>
 
-  <p class="footer-copy">
-    &copy; 2025 CineStream &mdash; Built with ❤️ by
-    <a href="https://github.com/abdou505g" target="_blank" rel="noopener noreferrer">Abderrahmane Messaoudi</a>
-    &mdash; Data by <a href="https://www.omdbapi.com" target="_blank" rel="noopener noreferrer">OMDb API</a>
-  </p>
+<!-- ═══ FOOTER ═══ -->
+<footer class="cb-footer">
+  <div class="cb-container">
+    <div class="cb-footer-brand-row">
+      <div>
+        <span class="cb-footer-brand-name">CINE<span>STREAM</span></span>
+        <p class="cb-footer-tagline">Your personal streaming guide · May 2026</p>
+      </div>
+      <div class="cb-footer-links">
+        <a href="/movies">Movies</a>
+        <a href="/tv-shows">TV Shows</a>
+        <a href="/category/action">Action</a>
+        <a href="/category/drama">Drama</a>
+      </div>
+    </div>
+    <div class="cb-footer-bottom">
+      <span class="cb-copyright">
+        &copy; 2026 Made with ♥ by
+        <a href="https://github.com/abdou505g" target="_blank" rel="noopener">Abderrahmane Messaoudi</a>
+      </span>
+      <button class="cb-back-top" id="cbBackTop" aria-label="Back to top"><i class="bi bi-chevron-up"></i></button>
+    </div>
+    <div class="cb-footer-disclaimer">
+      <p>Disclaimer: This site does not store any files. All content is provided by non-affiliated third parties.</p>
+    </div>
+  </div>
 </footer>
 
+</div><!-- end #app -->
+
+<script defer src="app.js"></script>
 </body>
 </html>
