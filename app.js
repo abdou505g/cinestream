@@ -733,7 +733,8 @@ function setupAuthUI() {
   document.getElementById('btnGuest')?.addEventListener('click', () => {
     S.user = { ...CFG.DEMO_USER };
     Store.write('cs_user', S.user);
-    document.getElementById('authScreen')?.classList.add('hidden');
+    const authEl = document.getElementById('authScreen');
+    if (authEl) authEl.style.display = 'none';
     bootApp();
   });
 
@@ -748,7 +749,8 @@ function setupAuthUI() {
       const user = LocalAuth.login(email, pass);
       S.user = user;
       Store.write('cs_user', user);
-      document.getElementById('authScreen')?.classList.add('hidden');
+      const authEl = document.getElementById('authScreen');
+      if (authEl) authEl.style.display = 'none';
       bootApp();
     } catch (e) {
       if (e.message === 'not-found') {
@@ -758,7 +760,8 @@ function setupAuthUI() {
           S.user = { uid: btoa(email), name, email, photo: '' };
           Store.write('cs_user', S.user);
           toast('✅ Welcome to CineStream, ' + name + '!');
-          document.getElementById('authScreen')?.classList.add('hidden');
+          const authEl = document.getElementById('authScreen');
+          if (authEl) authEl.style.display = 'none';
           bootApp();
         } catch (e2) {
           showErr('Error creating account. Please try again.');
@@ -778,9 +781,10 @@ function bootApp() {
   if (S.appBooted) return;
   S.appBooted = true;
 
-  document.getElementById('authScreen')?.classList.add('hidden');
-  const appEl = document.getElementById('app');
-  if (appEl) appEl.classList.remove('hidden');
+  const authEl = document.getElementById('authScreen');
+  const appEl  = document.getElementById('app');
+  if (authEl) authEl.style.display = 'none';
+  if (appEl)  appEl.style.display  = 'block';
 
   // Update user display
   if (S.user?.name) {
@@ -925,6 +929,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Show auth screen
-  document.getElementById('authScreen')?.classList.remove('hidden');
+  const authEl = document.getElementById('authScreen');
+  if (authEl) authEl.style.display = 'flex';
   setupAuthUI();
 });

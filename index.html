@@ -15,12 +15,25 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
-  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="style.css?v=4"/>
+  <style>
+    body{margin:0;background:#0a0a0a;color:#fff;font-family:'Inter',sans-serif;}
+    #authScreen{display:none;}
+    #app{display:none;}
+    .cb-mobile-panel{position:fixed;top:0;left:0;bottom:0;width:280px;background:#141414;z-index:2000;transform:translateX(-100%);transition:transform .3s ease;overflow-y:auto;}
+    .cb-mobile-panel.open{transform:translateX(0);}
+    .cb-mobile-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1999;opacity:0;pointer-events:none;transition:opacity .3s;}
+    .cb-mobile-overlay.open{opacity:1;pointer-events:all;}
+    .cb-dropdown-menu{display:none;}
+    .cb-dropdown:hover .cb-dropdown-menu{display:block;}
+    .search-overlay{opacity:0;pointer-events:none;position:fixed;}
+    .search-overlay.open{opacity:1;pointer-events:all;}
+  </style>
 </head>
 <body>
 
 <!-- ═══ AUTH SCREEN ═══ -->
-<div class="auth-screen hidden" id="authScreen">
+<div class="auth-screen" id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">CINE<span>STREAM</span></div>
     <p class="auth-tagline">Your personal streaming guide · May 2026</p>
@@ -49,7 +62,7 @@
 </div>
 
 <!-- ═══ APP WRAPPER ═══ -->
-<div id="app" class="hidden">
+<div id="app">
 
 <!-- ═══ HEADER ═══ -->
 <header class="cb-header" id="cbHeader">
@@ -369,6 +382,6 @@
 
 </div><!-- end #app -->
 
-<script defer src="app.js"></script>
+<script defer src="app.js?v=4"></script>
 </body>
 </html>
