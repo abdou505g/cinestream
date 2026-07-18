@@ -44,6 +44,24 @@ const SERIES_2026 = [
   'tt11198330', // The Boys (Season 5)
 ];
 
+// ── HERO SLIDER LINEUP (updated 18/07/2026) ───────────────────
+// Pulled live from OMDb at load time — keep this list current and
+// the hero banner stays current automatically, no hardcoded images.
+const HERO_IDS = [
+  'tt33764258', // The Odyssey
+  'tt22084616', // Spider-Man: Brand New Day
+  'tt14452776', // The Bear (Season 5)
+  'tt12042730', // Project Hail Mary
+  'tt33612209', // The Devil Wears Prada 2
+];
+const HERO_BADGES = [
+  '<i class="bi bi-fire"></i> Trending Now',
+  '<i class="bi bi-lightning-fill"></i> Coming Soon',
+  '<i class="bi bi-tv"></i> Series · Final Season',
+  '<i class="bi bi-film"></i> Now Streaming',
+  '<i class="bi bi-star-fill"></i> New Release',
+];
+
 // ── VALIDATION ──────────────────────────────────────────────
 const IMDB_RE = /^tt\d{7,8}$/;
 function validId(id) { return typeof id === 'string' && IMDB_RE.test(id); }
@@ -358,9 +376,54 @@ function buildSkel() {
 }
 
 // ── HERO SLIDER ───────────────────────────────────────────
+function buildHeroSlideHTML(m, idx) {
+  const type = m.Type === 'series' ? 'tv' : 'movie';
+  const genres = (m.Genre && m.Genre !== 'N/A') ? m.Genre.split(', ').slice(0, 2) : [];
+  const tagsHtml = genres.map(g => `<span class="cb-tag">${esc(g)}</span>`).join('');
+  const rating = (m.imdbRating && m.imdbRating !== 'N/A')
+    ? `<span class="cb-slide-dot">·</span><span><i class="bi bi-star-fill" style="color:#fbbf24"></i> ${esc(m.imdbRating)}</span>`
+    : '';
+  const plot = (m.Plot && m.Plot !== 'N/A') ? m.Plot : '';
+  const desc = plot.length > 170 ? plot.slice(0, 167).trimEnd() + '…' : plot;
+  const bg = (m.Poster && m.Poster !== 'N/A') ? `style="background-image:url('${esc(m.Poster)}')"` : '';
+  const badge = HERO_BADGES[idx] || '<i class="bi bi-film"></i> Featured';
+  return `
+    <div class="cb-slide${idx === 0 ? ' active' : ''}">
+      <div class="cb-slide-bg" ${bg}></div>
+      <div class="cb-slide-gradient"></div>
+      <div class="cb-slide-content">
+        <div class="cb-slide-badge">${badge}</div>
+        <h1 class="cb-slide-title">${esc(m.Title)}</h1>
+        <div class="cb-slide-meta">
+          ${tagsHtml}
+          <span class="cb-slide-dot">·</span>
+          <span>${esc(m.Year)}</span>
+          ${rating}
+        </div>
+        ${desc ? `<p class="cb-slide-desc">${esc(desc)}</p>` : ''}
+        <div class="cb-slide-actions">
+          <button class="cb-btn cb-btn-play cb-slide-play" data-embed="/embed/${type}/${m.imdbID}"><i class="bi bi-play-fill"></i> Play Now</button>
+          <button class="cb-btn cb-btn-ghost-sm cb-slide-info" data-id="${m.imdbID}"><i class="bi bi-info-circle"></i> More Info</button>
+        </div>
+      </div>
+    </div>`;
+}
+
 async function initHero() {
   const hero = document.getElementById('cbHero');
-  if (!hero) return;
+  const slidesWrap = document.getElementById('cbSlides');
+  const dotsWrap = document.getElementById('cbSliderDots');
+  if (!hero || !slidesWrap) return;
+
+  const results = await fetchBatch(HERO_IDS);
+  const movies = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
+  if (!movies.length) { hero.style.display = 'none'; return; }
+
+  slidesWrap.innerHTML = movies.map((m, i) => buildHeroSlideHTML(m, i)).join('');
+  if (dotsWrap) {
+    dotsWrap.innerHTML = movies.map((_, i) => `<span class="cb-dot${i === 0 ? ' active' : ''}" data-idx="${i}"></span>`).join('');
+  }
+
   const slides = hero.querySelectorAll('.cb-slide');
   const dots = hero.querySelectorAll('.cb-dot');
   if (!slides.length) return;
