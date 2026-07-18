@@ -1,7 +1,7 @@
 'use strict';
 
 /* ════════════════════════════════════════════════════════════════
-   CineStream v4.1 – Updated 18 July 2026
+   CineStream v4.0 – May 2026
    Modern UI inspired by StreamIMDB – fully functional
 ═══════════════════════════════════════════════════════════════ */
 
@@ -20,46 +20,34 @@ const CFG = {
   FETCH_RETRIES: 2,
 };
 
-// ── JULY 2026 MOVIES (updated 18/07/2026) ────────────────────
+// ── May 2026 MOVIES ──────────────────────────────────────────
 const MOVIES_2026 = [
-  'tt33764258', // The Odyssey (Christopher Nolan)
-  'tt22084616', // Spider-Man: Brand New Day
-  'tt12042730', // Project Hail Mary
-  'tt33612209', // The Devil Wears Prada 2
-  'tt32278481', // Enola Holmes 3
-  'tt33071426', // The Drama
-  'tt31170389', // Evil Dead Burn
-  'tt36304003', // 72 Hours
+  'tt9603212',  // Mission: Impossible – The Final Reckoning
+  'tt32141377', // The Punisher: One Last Kill
+  'tt11271086', // Jurassic World: Rebirth
+  'tt6263850',  // Superman (2025)
+  'tt8239946',  // F1 (2025)
+  'tt1684562',  // Ballerina (John Wick spinoff)
+  'tt8093700',  // The Running Man
+  'tt12525922', // Final Destination: Bloodlines
+  'tt1314481',  // The Devil Wears Prada 2
+  'tt5765844',  // Project Hail Mary
+  'tt1007757',  // Swapped
+  'tt21692408', // My Dearest Assassin
 ];
 
-// ── JULY 2026 SERIES (updated 18/07/2026) ────────────────────
+// ── May 2026 SERIES ──────────────────────────────────────────
 const SERIES_2026 = [
-  'tt14452776', // The Bear (Season 5, series finale)
-  'tt34866681', // Lucky (Apple TV)
-  'tt27550719', // The Hawk (Will Ferrell, Netflix)
-  'tt2431250',  // Little House on the Prairie (2026 reboot)
-  'tt11737520', // House of the Dragon (Season 3)
-  'tt4574334',  // Stranger Things (Season 5)
-  'tt9253284',  // Severance (Season 2)
   'tt11198330', // The Boys (Season 5)
-];
-
-// ── HERO SLIDER LINEUP (updated 18/07/2026) ───────────────────
-// Pulled live from OMDb at load time — keep this list current and
-// the hero banner stays current automatically, no hardcoded images.
-const HERO_IDS = [
-  'tt33764258', // The Odyssey
-  'tt22084616', // Spider-Man: Brand New Day
-  'tt14452776', // The Bear (Season 5)
-  'tt12042730', // Project Hail Mary
-  'tt33612209', // The Devil Wears Prada 2
-];
-const HERO_BADGES = [
-  '<i class="bi bi-fire"></i> Trending Now',
-  '<i class="bi bi-lightning-fill"></i> Coming Soon',
-  '<i class="bi bi-tv"></i> Series · Final Season',
-  '<i class="bi bi-film"></i> Now Streaming',
-  '<i class="bi bi-star-fill"></i> New Release',
+  'tt4574334',  // Stranger Things (Season 5)
+  'tt14452776', // The Last of Us (Season 2)
+  'tt11737520', // House of the Dragon (Season 3)
+  'tt9253284',  // Severance (Season 2)
+  'tt21276558', // FROM
+  'tt10604324', // Daredevil: Born Again
+  'tt14164207', // Citadel
+  'tt6468322',  // The White Lotus
+  'tt15398776', // Tulsa King
 ];
 
 // ── VALIDATION ──────────────────────────────────────────────
@@ -376,54 +364,9 @@ function buildSkel() {
 }
 
 // ── HERO SLIDER ───────────────────────────────────────────
-function buildHeroSlideHTML(m, idx) {
-  const type = m.Type === 'series' ? 'tv' : 'movie';
-  const genres = (m.Genre && m.Genre !== 'N/A') ? m.Genre.split(', ').slice(0, 2) : [];
-  const tagsHtml = genres.map(g => `<span class="cb-tag">${esc(g)}</span>`).join('');
-  const rating = (m.imdbRating && m.imdbRating !== 'N/A')
-    ? `<span class="cb-slide-dot">·</span><span><i class="bi bi-star-fill" style="color:#fbbf24"></i> ${esc(m.imdbRating)}</span>`
-    : '';
-  const plot = (m.Plot && m.Plot !== 'N/A') ? m.Plot : '';
-  const desc = plot.length > 170 ? plot.slice(0, 167).trimEnd() + '…' : plot;
-  const bg = (m.Poster && m.Poster !== 'N/A') ? `style="background-image:url('${esc(m.Poster)}')"` : '';
-  const badge = HERO_BADGES[idx] || '<i class="bi bi-film"></i> Featured';
-  return `
-    <div class="cb-slide${idx === 0 ? ' active' : ''}">
-      <div class="cb-slide-bg" ${bg}></div>
-      <div class="cb-slide-gradient"></div>
-      <div class="cb-slide-content">
-        <div class="cb-slide-badge">${badge}</div>
-        <h1 class="cb-slide-title">${esc(m.Title)}</h1>
-        <div class="cb-slide-meta">
-          ${tagsHtml}
-          <span class="cb-slide-dot">·</span>
-          <span>${esc(m.Year)}</span>
-          ${rating}
-        </div>
-        ${desc ? `<p class="cb-slide-desc">${esc(desc)}</p>` : ''}
-        <div class="cb-slide-actions">
-          <button class="cb-btn cb-btn-play cb-slide-play" data-embed="/embed/${type}/${m.imdbID}"><i class="bi bi-play-fill"></i> Play Now</button>
-          <button class="cb-btn cb-btn-ghost-sm cb-slide-info" data-id="${m.imdbID}"><i class="bi bi-info-circle"></i> More Info</button>
-        </div>
-      </div>
-    </div>`;
-}
-
 async function initHero() {
   const hero = document.getElementById('cbHero');
-  const slidesWrap = document.getElementById('cbSlides');
-  const dotsWrap = document.getElementById('cbSliderDots');
-  if (!hero || !slidesWrap) return;
-
-  const results = await fetchBatch(HERO_IDS);
-  const movies = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
-  if (!movies.length) { hero.style.display = 'none'; return; }
-
-  slidesWrap.innerHTML = movies.map((m, i) => buildHeroSlideHTML(m, i)).join('');
-  if (dotsWrap) {
-    dotsWrap.innerHTML = movies.map((_, i) => `<span class="cb-dot${i === 0 ? ' active' : ''}" data-idx="${i}"></span>`).join('');
-  }
-
+  if (!hero) return;
   const slides = hero.querySelectorAll('.cb-slide');
   const dots = hero.querySelectorAll('.cb-dot');
   if (!slides.length) return;

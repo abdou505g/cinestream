@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
-  <link rel="stylesheet" href="style.css?v=5"/>
+  <link rel="stylesheet" href="style.css?v=4"/>
   <style>
     body{margin:0;background:#0a0a0a;color:#fff;font-family:'Inter',sans-serif;}
     #authScreen{display:none;}
@@ -36,7 +36,7 @@
 <div class="auth-screen" id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">CINE<span>STREAM</span></div>
-    <p class="auth-tagline">Your personal streaming guide · July 2026</p>
+    <p class="auth-tagline">Your personal streaming guide · May 2026</p>
     <button class="btn-guest" id="btnGuest" type="button">
       <i class="bi bi-play-circle-fill"></i> Watch as Guest
     </button>
@@ -116,16 +116,101 @@
   </div>
 </header>
 
-<!-- ═══ HERO SLIDER (populated live from HERO_IDS in app.js — always current) ═══ -->
+<!-- ═══ HERO SLIDER ═══ -->
 <section class="cb-hero" id="cbHero">
-  <div class="cb-slides" id="cbSlides">
-    <!-- slides are injected by initHero() in app.js -->
+  <div class="cb-slides">
+    <!-- Slide 1: Mission Impossible Final Reckoning -->
+    <div class="cb-slide active">
+      <div class="cb-slide-bg" style="background-image:url('https://image.tmdb.org/t/p/w1280/z53D72EAOxGRqdr7KXXWp9dJiDe.jpg')"></div>
+      <div class="cb-slide-gradient"></div>
+      <div class="cb-slide-content">
+        <div class="cb-slide-badge"><i class="bi bi-fire"></i> Trending Now</div>
+        <h1 class="cb-slide-title">Mission: Impossible</h1>
+        <div class="cb-slide-meta">
+          <span class="cb-tag">Action</span><span class="cb-tag">Thriller</span>
+          <span class="cb-slide-dot">·</span>
+          <span>2026</span>
+          <span class="cb-slide-dot">·</span>
+          <span><i class="bi bi-star-fill" style="color:#fbbf24"></i> 8.5</span>
+        </div>
+        <p class="cb-slide-desc">Ethan Hunt races against time in his most dangerous mission yet — one that will determine the fate of humanity itself.</p>
+        <div class="cb-slide-actions">
+          <button class="cb-btn cb-btn-play cb-slide-play" data-embed="/embed/movie/tt9603212"><i class="bi bi-play-fill"></i> Play Now</button>
+          <button class="cb-btn cb-btn-ghost-sm cb-slide-info" data-id="tt9603212"><i class="bi bi-info-circle"></i> More Info</button>
+        </div>
+      </div>
+    </div>
+    <!-- Slide 2: The Punisher -->
+    <div class="cb-slide">
+      <div class="cb-slide-bg" style="background-image:url('https://image.tmdb.org/t/p/w1280/wjcPbV53ovhlogVFYdmkTDBooqg.jpg')"></div>
+      <div class="cb-slide-gradient"></div>
+      <div class="cb-slide-content">
+        <div class="cb-slide-badge"><i class="bi bi-lightning-fill"></i> New Release</div>
+        <img src="https://image.tmdb.org/t/p/w500/lReCKrf9vGHcmhiqpsMgDgNzWPr.png" alt="The Punisher: One Last Kill" class="cb-slide-title-logo"/>
+        <div class="cb-slide-meta">
+          <span class="cb-tag">Action</span><span class="cb-tag">Crime</span>
+          <span class="cb-slide-dot">·</span>
+          <span>2026</span>
+          <span class="cb-slide-dot">·</span>
+          <span><i class="bi bi-star-fill" style="color:#fbbf24"></i> 9.0</span>
+        </div>
+        <div class="cb-slide-actions">
+          <button class="cb-btn cb-btn-play cb-slide-play" data-embed="/embed/movie/tt32141377"><i class="bi bi-play-fill"></i> Play Now</button>
+          <button class="cb-btn cb-btn-ghost-sm cb-slide-info" data-id="tt32141377"><i class="bi bi-info-circle"></i> More Info</button>
+        </div>
+      </div>
+    </div>
+    <!-- Slide 3: The Boys S5 -->
+    <div class="cb-slide">
+      <div class="cb-slide-bg" style="background-image:url('https://image.tmdb.org/t/p/w1280/mY7SeH4HFFxW1hiI6cWuwCRKptN.jpg')"></div>
+      <div class="cb-slide-gradient"></div>
+      <div class="cb-slide-content">
+        <div class="cb-slide-badge"><i class="bi bi-tv"></i> Series · Season 5</div>
+        <h1 class="cb-slide-title">The Boys</h1>
+        <div class="cb-slide-meta">
+          <span class="cb-tag">Action</span><span class="cb-tag">Sci-Fi</span>
+          <span class="cb-slide-dot">·</span>
+          <span>2026</span>
+          <span class="cb-slide-dot">·</span>
+          <span><i class="bi bi-star-fill" style="color:#fbbf24"></i> 8.7</span>
+        </div>
+        <p class="cb-slide-desc">The explosive final season of the Emmy-winning series — the supes are at war, and nothing is off limits.</p>
+        <div class="cb-slide-actions">
+          <button class="cb-btn cb-btn-play cb-slide-play" data-embed="/embed/tv/tt11198330"><i class="bi bi-play-fill"></i> Play Now</button>
+          <button class="cb-btn cb-btn-ghost-sm cb-slide-info" data-id="tt11198330"><i class="bi bi-info-circle"></i> More Info</button>
+        </div>
+      </div>
+    </div>
+    <!-- Slide 4: Jurassic World Rebirth -->
+    <div class="cb-slide">
+      <div class="cb-slide-bg" style="background-image:url('https://image.tmdb.org/t/p/w1280/ikcNOWB6Qo1ER1H1BJL6Vf0W22s.jpg')"></div>
+      <div class="cb-slide-gradient"></div>
+      <div class="cb-slide-content">
+        <div class="cb-slide-badge"><i class="bi bi-film"></i> Now Streaming</div>
+        <h1 class="cb-slide-title">Jurassic World: Rebirth</h1>
+        <div class="cb-slide-meta">
+          <span class="cb-tag">Adventure</span><span class="cb-tag">Sci-Fi</span>
+          <span class="cb-slide-dot">·</span>
+          <span>2025</span>
+          <span class="cb-slide-dot">·</span>
+          <span><i class="bi bi-star-fill" style="color:#fbbf24"></i> 7.2</span>
+        </div>
+        <p class="cb-slide-desc">A new chapter in the Jurassic universe — five years after the events of Dominion, nature has reclaimed the Earth.</p>
+        <div class="cb-slide-actions">
+          <button class="cb-btn cb-btn-play cb-slide-play" data-embed="/embed/movie/tt11271086"><i class="bi bi-play-fill"></i> Play Now</button>
+          <button class="cb-btn cb-btn-ghost-sm cb-slide-info" data-id="tt11271086"><i class="bi bi-info-circle"></i> More Info</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <button class="cb-slider-arrow cb-slider-prev" id="cbSliderPrev" aria-label="Previous"><i class="bi bi-chevron-left"></i></button>
   <button class="cb-slider-arrow cb-slider-next" id="cbSliderNext" aria-label="Next"><i class="bi bi-chevron-right"></i></button>
   <div class="cb-slider-dots" id="cbSliderDots">
-    <!-- dots are injected by initHero() in app.js -->
+    <span class="cb-dot active" data-idx="0"></span>
+    <span class="cb-dot" data-idx="1"></span>
+    <span class="cb-dot" data-idx="2"></span>
+    <span class="cb-dot" data-idx="3"></span>
   </div>
 </section>
 
@@ -145,7 +230,7 @@
   <section class="cb-section cb-top10-section">
     <div class="cb-section-header">
       <h2 class="cb-section-title"><span class="cb-title-bar"></span> TOP 10</h2>
-      <span class="cb-top10-badge"><i class="bi bi-calendar3"></i> July 2026</span>
+      <span class="cb-top10-badge"><i class="bi bi-calendar3"></i> May 2026</span>
     </div>
     <div class="cb-top10-row" id="cbTop10"></div>
   </section>
@@ -273,7 +358,7 @@
     <div class="cb-footer-brand-row">
       <div>
         <span class="cb-footer-brand-name">CINE<span>STREAM</span></span>
-        <p class="cb-footer-tagline">Your personal streaming guide · July 2026</p>
+        <p class="cb-footer-tagline">Your personal streaming guide · May 2026</p>
       </div>
       <div class="cb-footer-links">
         <a href="/movies">Movies</a>
@@ -297,6 +382,6 @@
 
 </div><!-- end #app -->
 
-<script defer src="app.js?v=5"></script>
+<script defer src="app.js?v=4"></script>
 </body>
 </html>
