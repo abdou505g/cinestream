@@ -1,7 +1,7 @@
 'use strict';
 
 /* ════════════════════════════════════════════════════════════════
-   CineStream v4.0 – May 2026
+   CineStream v4.1 – Updated 18 July 2026
    Modern UI inspired by StreamIMDB – fully functional
 ═══════════════════════════════════════════════════════════════ */
 
@@ -20,34 +20,28 @@ const CFG = {
   FETCH_RETRIES: 2,
 };
 
-// ── May 2026 MOVIES ──────────────────────────────────────────
+// ── JULY 2026 MOVIES (updated 18/07/2026) ────────────────────
 const MOVIES_2026 = [
-  'tt9603212',  // Mission: Impossible – The Final Reckoning
-  'tt32141377', // The Punisher: One Last Kill
-  'tt11271086', // Jurassic World: Rebirth
-  'tt6263850',  // Superman (2025)
-  'tt8239946',  // F1 (2025)
-  'tt1684562',  // Ballerina (John Wick spinoff)
-  'tt8093700',  // The Running Man
-  'tt12525922', // Final Destination: Bloodlines
-  'tt1314481',  // The Devil Wears Prada 2
-  'tt5765844',  // Project Hail Mary
-  'tt1007757',  // Swapped
-  'tt21692408', // My Dearest Assassin
+  'tt33764258', // The Odyssey (Christopher Nolan)
+  'tt22084616', // Spider-Man: Brand New Day
+  'tt12042730', // Project Hail Mary
+  'tt33612209', // The Devil Wears Prada 2
+  'tt32278481', // Enola Holmes 3
+  'tt33071426', // The Drama
+  'tt31170389', // Evil Dead Burn
+  'tt36304003', // 72 Hours
 ];
 
-// ── May 2026 SERIES ──────────────────────────────────────────
+// ── JULY 2026 SERIES (updated 18/07/2026) ────────────────────
 const SERIES_2026 = [
-  'tt11198330', // The Boys (Season 5)
-  'tt4574334',  // Stranger Things (Season 5)
-  'tt14452776', // The Last of Us (Season 2)
+  'tt14452776', // The Bear (Season 5, series finale)
+  'tt34866681', // Lucky (Apple TV)
+  'tt27550719', // The Hawk (Will Ferrell, Netflix)
+  'tt2431250',  // Little House on the Prairie (2026 reboot)
   'tt11737520', // House of the Dragon (Season 3)
+  'tt4574334',  // Stranger Things (Season 5)
   'tt9253284',  // Severance (Season 2)
-  'tt21276558', // FROM
-  'tt10604324', // Daredevil: Born Again
-  'tt14164207', // Citadel
-  'tt6468322',  // The White Lotus
-  'tt15398776', // Tulsa King
+  'tt11198330', // The Boys (Season 5)
 ];
 
 // ── VALIDATION ──────────────────────────────────────────────
